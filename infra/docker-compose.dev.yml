@@ -1,0 +1,71 @@
+services:
+  api:
+    build:
+      context: ../apps/api
+      dockerfile: Dockerfile.dev
+    ports:
+      - "5091:5091"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:5091
+      DOTNET_USE_POLLING_FILE_WATCHER: 1
+      ConnectionStrings__Postgres: "Host=postgres;Database=${POSTGRES_DB:-todo};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-postgres}"
+      ConnectionStrings__Redis: "redis:6379"
+      Serilog__WriteTo__1__Args__serverUrl: "http://seq"
+    volumes:
+      - ../apps/api:/app
+      # Exclude compiled output so host and container don't clobber each other
+      - /app/bin
+      - /app/obj
+      - /app/src/Domain/bin
+      - /app/src/Domain/obj
+      - /app/src/Application/bin
+      - /app/src/Application/obj
+      - /app/src/Infrastructure/bin
+      - /app/src/Infrastructure/obj
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      seq:
+        condition: service_started
+
+  postgres:
+    image: postgres:17-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-todo}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+
+  seq:
+    image: datalust/seq:latest
+    ports:
+      - "5341:80"
+    environment:
+      ACCEPT_EULA: Y
+      SEQ_FIRSTRUN_NOAUTHENTICATION: true
+    volumes:
+      - seq_data:/data
+
+volumes:
+  postgres_data:
+  redis_data:
+  seq_data:

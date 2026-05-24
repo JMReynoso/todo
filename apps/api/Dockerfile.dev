@@ -1,0 +1,14 @@
+FROM mcr.microsoft.com/dotnet/sdk:10.0
+WORKDIR /app
+
+# Copy project files first for a cacheable restore layer
+COPY api.csproj ./
+COPY src/Domain/Domain.csproj src/Domain/
+COPY src/Application/Application.csproj src/Application/
+COPY src/Infrastructure/Infrastructure.csproj src/Infrastructure/
+RUN dotnet restore
+
+# Source is mounted at runtime via a volume — no COPY needed here
+EXPOSE 5091
+
+ENTRYPOINT ["dotnet", "watch", "run", "--no-launch-profile"]

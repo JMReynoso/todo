@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <!-- Prevent the api project from globbing source files that belong to the src/ sub-projects -->
+  <ItemGroup>
+    <Compile Remove="src\**\*.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- FluentValidation ASP.NET Core integration -->
+    <PackageReference Include="FluentValidation.AspNetCore" Version="11.*" />
+
+    <!-- Serilog → console + Seq -->
+    <PackageReference Include="Serilog.AspNetCore" Version="8.*" />
+    <PackageReference Include="Serilog.Sinks.Seq" Version="6.*" />
+    <PackageReference Include="Serilog.Enrichers.Environment" Version="3.*" />
+    <PackageReference Include="Serilog.Enrichers.Thread" Version="4.*" />
+
+    <!-- Swashbuckle / OpenAPI UI -->
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="7.*" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="src\Application\Application.csproj" />
+    <ProjectReference Include="src\Infrastructure\Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>
