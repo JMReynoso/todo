@@ -1,0 +1,66 @@
+/* Shared modal primitives — used by DetailSheet and SettingsModal. */
+
+.scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgba(20, 16, 10, 0.22);
+  transition: opacity 220ms ease, backdrop-filter 220ms ease;
+}
+
+.scrimShown {
+  backdrop-filter: blur(10px) saturate(110%);
+  -webkit-backdrop-filter: blur(10px) saturate(110%);
+}
+
+.frame {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: min(8vh, 80px) 24px;
+}
+
+.frameMobile {
+  padding: 0;
+  align-items: stretch;
+}
+
+.dialog {
+  width: min(580px, 100%);
+  max-height: 100%;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transform-origin: center 35%;
+  transition: opacity 220ms ease, transform 260ms cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+.dialogShown {
+  box-shadow:
+    0 30px 80px -20px rgba(20, 16, 10, 0.3),
+    0 8px 20px -10px rgba(20, 16, 10, 0.18);
+}
+
+.dialogMobile {
+  width: 100%;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.dialogWide {
+  width: min(720px, 100%);
+  display: grid;
+  grid-template-columns: 180px 1fr;
+}
+
+.dialogWideMobile {
+  grid-template-columns: 1fr;
+  grid-template-rows: auto 1fr;
+}

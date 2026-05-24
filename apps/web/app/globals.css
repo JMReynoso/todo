@@ -1,26 +1,92 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg: #faf8f5;
+  --bg-elev: #ffffff;
+  --bg-sunken: #f3efe8;
+  --ink: #1a1612;
+  --ink-2: #4a4439;
+  --ink-3: #8a8275;
+  --ink-4: #b8b0a1;
+  --line: #ebe6dd;
+  --line-strong: #ddd5c6;
+  --accent: oklch(0.62 0.14 55);
+  --accent-soft: oklch(0.94 0.04 65);
+  --accent-ink: oklch(0.42 0.12 50);
+  --danger: oklch(0.55 0.18 25);
+  --serif: var(--font-instrument-serif), "Times New Roman", serif;
+  --sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --mono: var(--font-geist-mono), ui-monospace, monospace;
+  --display: var(--font-comfortaa), ui-rounded, sans-serif;
+  --radius: 10px;
+  --row-h: 52px;
+  --gutter: 28px;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+[data-density="compact"] {
+  --row-h: 40px;
+  --gutter: 20px;
 }
 
-@media (prefers-color-scheme: dark) {
+@media (max-width: 720px) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --row-h: 48px;
+    --gutter: 16px;
+  }
+  body {
+    font-size: 14px;
   }
 }
 
+[data-mobile="true"] .topbar-spacer {
+  display: none !important;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 14.5px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overflow-x: hidden;
+}
+
+::selection {
+  background: var(--accent-soft);
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  padding: 0;
+}
+
+input,
+textarea {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  outline: 0;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--ink-4);
 }
