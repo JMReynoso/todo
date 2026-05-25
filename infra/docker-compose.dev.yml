@@ -40,6 +40,7 @@ services:
       - /app/src/Application/obj
       - /app/src/Infrastructure/bin
       - /app/src/Infrastructure/obj
+      - uploads_data:/app/uploads
     depends_on:
       postgres:
         condition: service_healthy
@@ -86,3 +87,4 @@ volumes:
   postgres_data:
   redis_data:
   seq_data:
+  uploads_data:
