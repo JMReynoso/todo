@@ -1,4 +1,18 @@
 services:
+  web:
+    build:
+      context: ../apps/web
+      dockerfile: Dockerfile.prod
+      # NEXT_PUBLIC_ vars are embedded at build time. Pass the public-facing API
+      # URL here once API routes exist, e.g.:
+      # args:
+      #   NEXT_PUBLIC_API_URL: https://yourdomain.com/api
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+    depends_on:
+      - api
+
   api:
     build:
       context: ../apps/api
