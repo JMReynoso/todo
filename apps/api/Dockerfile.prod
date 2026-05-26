@@ -14,6 +14,13 @@ RUN dotnet publish api.csproj -c Release -o /app/publish --no-restore
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0
 WORKDIR /app
-COPY --from=build /app/publish .
+
+RUN addgroup --system --gid 1001 dotnet \
+ && adduser  --system --uid 1001 --ingroup dotnet appuser
+
+COPY --from=build --chown=appuser:dotnet /app/publish .
+
+USER appuser
+
 EXPOSE 8080
 ENTRYPOINT ["dotnet", "api.dll"]
