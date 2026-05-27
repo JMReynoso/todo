@@ -10,12 +10,13 @@ export type Density = 'comfortable' | 'compact';
 
 export interface Subtask {
   id: string;
+  taskId: number;
   title: string;
   done: boolean;
 }
 
 export interface Task {
-  id: string;
+  id: number;
   cadence: Cadence;
   title: string;
   done: boolean;
