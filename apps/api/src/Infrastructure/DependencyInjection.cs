@@ -28,6 +28,7 @@ public static class DependencyInjection
 
         // Repositories
         services.AddScoped<ITodoRepository, TodoRepository>();
+        services.AddScoped<IPersonRepository, PersonRepository>();
 
         // Redis
         services.AddSingleton<IConnectionMultiplexer>(
