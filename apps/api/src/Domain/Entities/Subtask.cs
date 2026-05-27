@@ -23,8 +23,6 @@ public class Subtask : Entity
         Title = title;
     }
 
-    public void SetTodoId(int todoId) => TodoId = todoId;
-
     public Subtask GetSubtask()
     {
         return this;
