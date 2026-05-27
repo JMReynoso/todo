@@ -66,16 +66,4 @@ public class Person : Entity
     }
 
     public void SetPhotoUrl(string? photoUrl) => PhotoUrl = photoUrl;
-
-    public string? GetPhotoUrl() => PhotoUrl;
-
-    public string GetName() => Name;
-
-    public string GetInitials() => Initials;
-
-    public string GetColor() => Color;
-
-    public string GetEmail() => Email;
-
-    public Person GetPerson() => this;
 }

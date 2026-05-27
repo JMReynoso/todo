@@ -79,32 +79,4 @@ public class Todo : Entity
     }
 
     public bool RemoveSubtask(Subtask subtask) => _subtasks.Remove(subtask);
-
-    public string getTitle()
-    {
-        return Title;
-    }
-    public DateOnly? getDueOn()    {
-        return DueOn;
-    }
-    public string getNotes()      {
-        return Notes;
-    }
-    public PersonId? getAssignee() {
-        return Assignee;
-    }
-    public int getStreak()          {
-        return Streak;
-    }
-    public List<Subtask> getSubtasks() {
-        return _subtasks;
-    }
-    public List<string> getTags()      {
-        return _tags;
-    }
-
-    public Todo GetTodo()
-    {
-        return this;
-    }
 }

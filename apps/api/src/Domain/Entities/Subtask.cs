@@ -22,9 +22,4 @@ public class Subtask : Entity
         ArgumentException.ThrowIfNullOrWhiteSpace(title);
         Title = title;
     }
-
-    public Subtask GetSubtask()
-    {
-        return this;
-    }
 }
