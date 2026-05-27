@@ -10,9 +10,9 @@ public class UpdateTodoRequestValidator : AbstractValidator<UpdateTodoRequest>
         RuleFor(todo => todo.Title).NotEmpty().MaximumLength(200);
         RuleFor(todo => todo.Priority).IsInEnum();
 
-        // Assignee is optional; only validate the enum value when one is set.
-        RuleFor(todo => todo.Assignee!.Value)
-            .IsInEnum()
-            .When(todo => todo.Assignee.HasValue);
+        // Assignee is optional; when set it must reference a real person id.
+        RuleFor(todo => todo.AssigneeId!.Value)
+            .GreaterThan(0)
+            .When(todo => todo.AssigneeId.HasValue);
     }
 }

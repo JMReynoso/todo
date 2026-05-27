@@ -13,7 +13,7 @@ public record TodoResponse(
     DateOnly? Date,
     string Notes,
     int Streak,
-    PersonId? Assignee,
+    PersonResponse? Assignee,
     DateTime CreatedAt,
     IReadOnlyList<string> Tags,
     IReadOnlyList<SubtaskResponse> Subtasks);

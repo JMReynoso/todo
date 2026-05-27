@@ -25,5 +25,13 @@ public class TodoConfiguration : IEntityTypeConfiguration<Todo>
         // column (EF Core 8+). Same backing-field trick applies.
         todo.PrimitiveCollection(nameof(Todo.Tags))
             .UsePropertyAccessMode(PropertyAccessMode.Field);
+
+        // Assignee: optional FK to a Person, referenced by id only (Todo and
+        // Person are separate aggregate roots). No inverse navigation. SetNull
+        // so deleting a person unassigns their todos rather than deleting them.
+        todo.HasOne<Person>()
+            .WithMany()
+            .HasForeignKey(t => t.AssigneeId)
+            .OnDelete(DeleteBehavior.SetNull);
     }
 }

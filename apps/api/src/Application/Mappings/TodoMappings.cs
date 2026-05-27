@@ -5,7 +5,9 @@ namespace api.Application.Mappings;
 
 public static class TodoMappings
 {
-    public static TodoResponse ToResponse(this Todo todo) => new(
+    // assignee is resolved and passed in by the caller (the service), since a
+    // Todo only holds AssigneeId — loading the Person crosses the aggregate.
+    public static TodoResponse ToResponse(this Todo todo, PersonResponse? assignee = null) => new(
         todo.Id,
         todo.Title,
         todo.Cadence,
@@ -16,7 +18,7 @@ public static class TodoMappings
         todo.Date,
         todo.Notes,
         todo.Streak,
-        todo.Assignee,
+        assignee,
         todo.CreatedAt,
         todo.Tags,
         todo.Subtasks.Select(subtask => subtask.ToResponse()).ToList());

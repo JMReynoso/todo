@@ -10,4 +10,4 @@ public record UpdateTodoRequest(
     DateOnly? DueOn,
     DateOnly? Date,
     string Notes,
-    PersonId? Assignee);
+    int? AssigneeId);

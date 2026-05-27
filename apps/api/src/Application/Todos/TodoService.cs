@@ -10,10 +10,12 @@ namespace api.Application.Todos;
 /// <summary>
 /// Application service for Todo operations: validates incoming requests, drives
 /// the domain via <see cref="ITodoRepository"/>, owns the unit-of-work boundary
-/// (the repo only stages changes), and maps entities to response DTOs.
+/// (the repo only stages changes), and maps entities to response DTOs. Resolves
+/// the assigned <see cref="Person"/> (held by id on the Todo) via the person repo.
 /// </summary>
 public class TodoService(
     ITodoRepository todos,
+    IPersonRepository persons,
     IValidator<CreateTodoRequest> createValidator,
     IValidator<UpdateTodoRequest> updateValidator,
     IValidator<CreateSubtaskRequest> subtaskValidator)
@@ -21,13 +23,23 @@ public class TodoService(
     public async Task<TodoResponse?> GetByIdAsync(int id, CancellationToken ct = default)
     {
         var todo = await todos.GetByIdAsync(id, ct);
-        return todo?.ToResponse();
+        return todo is null ? null : await ToResponseAsync(todo, ct);
     }
 
     public async Task<IReadOnlyList<TodoResponse>> GetAllAsync(CancellationToken ct = default)
     {
         var all = await todos.GetAllAsync(ct);
-        return all.Select(todo => todo.ToResponse()).ToList();
+
+        // Resolve assignees in one batch to avoid an N+1 of per-todo lookups.
+        var people = (await persons.GetAllAsync(ct)).ToDictionary(person => person.Id);
+
+        return all.Select(todo =>
+        {
+            var assignee = todo.AssigneeId is int personId && people.TryGetValue(personId, out var person)
+                ? person.ToResponse()
+                : null;
+            return todo.ToResponse(assignee);
+        }).ToList();
     }
 
     public async Task<TodoResponse> CreateAsync(CreateTodoRequest request, CancellationToken ct = default)
@@ -37,7 +49,7 @@ public class TodoService(
         var todo = Todo.Create(request.Title, request.Cadence);
         await todos.AddAsync(todo, ct);
         await todos.SaveChangesAsync(ct);
-        return todo.ToResponse();
+        return todo.ToResponse(); // newly created — no assignee yet
     }
 
     public async Task<TodoResponse?> UpdateAsync(int id, UpdateTodoRequest request, CancellationToken ct = default)
@@ -53,10 +65,14 @@ public class TodoService(
         todo.SetDueOn(request.DueOn);
         todo.SetDate(request.Date);
         todo.SetNotes(request.Notes);
-        todo.SetAssignee(request.Assignee);
+
+        if (request.AssigneeId is int assigneeId)
+            todo.AssignTo(assigneeId);
+        else
+            todo.Unassign();
 
         await todos.SaveChangesAsync(ct);
-        return todo.ToResponse();
+        return await ToResponseAsync(todo, ct);
     }
 
     public async Task<TodoResponse?> AddSubtaskAsync(int todoId, CreateSubtaskRequest request, CancellationToken ct = default)
@@ -68,7 +84,7 @@ public class TodoService(
 
         todo.AddSubtask(Subtask.Create(request.Title));
         await todos.SaveChangesAsync(ct);
-        return todo.ToResponse();
+        return await ToResponseAsync(todo, ct);
     }
 
     public async Task<bool> RemoveAsync(int id, CancellationToken ct = default)
@@ -76,5 +92,17 @@ public class TodoService(
         var removed = await todos.RemoveAsync(id, ct);
         if (removed) await todos.SaveChangesAsync(ct);
         return removed;
+    }
+
+    // Maps a single todo, resolving its assignee Person (if any) across the aggregate.
+    private async Task<TodoResponse> ToResponseAsync(Todo todo, CancellationToken ct)
+    {
+        PersonResponse? assignee = null;
+        if (todo.AssigneeId is int personId)
+        {
+            var person = await persons.GetByIdAsync(personId, ct);
+            assignee = person?.ToResponse();
+        }
+        return todo.ToResponse(assignee);
     }
 }

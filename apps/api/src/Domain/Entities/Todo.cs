@@ -20,7 +20,13 @@ public class Todo : Entity
 
     public string Notes { get; private set; } = string.Empty;
     public int Streak { get; private set; }
-    public PersonId? Assignee { get; private set; }
+
+    /// <summary>
+    /// Optional FK to the assigned <see cref="Person"/>. Held by id only —
+    /// Person is a separate aggregate root, so we reference it across the
+    /// boundary by identity rather than holding the entity.
+    /// </summary>
+    public int? AssigneeId { get; private set; }
 
     public DateTime CreatedAt { get; private set; } = DateTime.UtcNow;
 
@@ -58,7 +64,9 @@ public class Todo : Entity
 
     public void SetNotes(string notes) => Notes = notes ?? string.Empty;
 
-    public void SetAssignee(PersonId? assignee) => Assignee = assignee;
+    public void AssignTo(int personId) => AssigneeId = personId;
+
+    public void Unassign() => AssigneeId = null;
 
     public void IncrementStreak() => Streak++;
 
