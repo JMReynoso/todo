@@ -2,7 +2,7 @@ using api.Domain.Enums;
 
 namespace api.Domain.Entities;
 
-public class Task : Entity
+public class Todo : Entity
 {
     public string Title { get; private set; } = string.Empty;
     public Cadence Cadence { get; private set; }
@@ -103,7 +103,7 @@ public class Task : Entity
         return _tags;
     }
 
-    public Task GetTask()
+    public Todo GetTodo()
     {
         return this;
     }
