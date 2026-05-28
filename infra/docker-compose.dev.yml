@@ -38,6 +38,8 @@ services:
       - /app/src/Domain/obj
       - /app/src/Application/bin
       - /app/src/Application/obj
+      - /app/src/Controllers/bin
+      - /app/src/Controllers/obj
       - /app/src/Infrastructure/bin
       - /app/src/Infrastructure/obj
       - uploads_data:/app/uploads
