@@ -1,0 +1,47 @@
+using api.Application.DTOs.Requests;
+using api.Application.DTOs.Responses;
+using api.Application.Todos;
+using Microsoft.AspNetCore.Mvc;
+
+namespace api.Controllers;
+
+[ApiController]
+[Route("api/todos")]
+public class TodoController(TodoService todos) : ControllerBase
+{
+    [HttpGet]
+    public async Task<ActionResult<IReadOnlyList<TodoResponse>>> GetAll(CancellationToken ct)
+        => Ok(await todos.GetAllAsync(ct));
+
+    [HttpGet("{id:int}")]
+    public async Task<ActionResult<TodoResponse>> GetById(int id, CancellationToken ct)
+    {
+        var todo = await todos.GetByIdAsync(id, ct);
+        return todo is null ? NotFound() : Ok(todo);
+    }
+
+    [HttpPost]
+    public async Task<ActionResult<TodoResponse>> Create(CreateTodoRequest request, CancellationToken ct)
+    {
+        var created = await todos.CreateAsync(request, ct);
+        return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
+    }
+
+    [HttpPut("{id:int}")]
+    public async Task<ActionResult<TodoResponse>> Update(int id, UpdateTodoRequest request, CancellationToken ct)
+    {
+        var updated = await todos.UpdateAsync(id, request, ct);
+        return updated is null ? NotFound() : Ok(updated);
+    }
+
+    [HttpPost("{id:int}/subtasks")]
+    public async Task<ActionResult<TodoResponse>> AddSubtask(int id, CreateSubtaskRequest request, CancellationToken ct)
+    {
+        var updated = await todos.AddSubtaskAsync(id, request, ct);
+        return updated is null ? NotFound() : Ok(updated);
+    }
+
+    [HttpDelete("{id:int}")]
+    public async Task<IActionResult> Remove(int id, CancellationToken ct)
+        => await todos.RemoveAsync(id, ct) ? NoContent() : NotFound();
+}
