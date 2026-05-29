@@ -8,5 +8,6 @@
   </Folder>
   <Folder Name="/test/">
     <Project Path="test/unit/Api.UnitTests.csproj" />
+    <Project Path="test/integration/Api.IntegrationTests.csproj" />
   </Folder>
 </Solution>
