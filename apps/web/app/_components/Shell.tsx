@@ -19,6 +19,7 @@ import { TodoCtx, type TodoContextValue } from '../_context/TodoCtx';
 import { ACCENTS } from '../_data/constants';
 import { seed } from '../_data/seed';
 import { useIsMobile } from '../_hooks/useIsMobile';
+import { apiFetch } from '../_lib/apiFetch';
 import { isoDate } from '../_lib/dates';
 import { uid } from '../_lib/uid';
 import type {
@@ -29,6 +30,29 @@ import type {
   Task,
   Tweaks,
 } from '../_types';
+
+interface ApiSubtask { id: number; title: string; done: boolean; todoId: number; }
+interface ApiTodo {
+  id: number; title: string; cadence: string; done: boolean;
+  priority: string; due: string; dueOn: string | null; date: string | null;
+  notes: string; streak: number; tags: string[]; subtasks: ApiSubtask[];
+}
+
+const mapApiTodo = (t: ApiTodo): Task => ({
+  id: String(t.id),
+  title: t.title,
+  cadence: t.cadence.toLowerCase() as Task['cadence'],
+  done: t.done,
+  priority: t.priority.toLowerCase() as Task['priority'],
+  due: t.due,
+  dueOn: t.dueOn ?? undefined,
+  date: t.date ?? undefined,
+  notes: t.notes,
+  streak: t.streak,
+  tags: t.tags,
+  subtasks: t.subtasks.map(s => ({ id: String(s.id), title: s.title, done: s.done, taskId: t.id })),
+  assignee: null,
+});
 
 const TWEAK_DEFAULTS: Tweaks = {
   layout: 'stacked',
@@ -73,6 +97,13 @@ export function Shell({ children }: { children: ReactNode }) {
       router.replace('/login');
     }
   }, [mounted, isAuthenticated, pathname, router]);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    apiFetch<ApiTodo[]>('/api/todos')
+      .then(data => setTasks(data.map(mapApiTodo)))
+      .catch(() => {}); // keep seed data if API is unreachable
+  }, [isAuthenticated]);
 
   const [tweaks, setTweak] = useTweaks(TWEAK_DEFAULTS);
   const [tasks, setTasks] = useState<Task[]>(seed);
@@ -162,11 +193,18 @@ export function Shell({ children }: { children: ReactNode }) {
       isDraft: true,
     });
   };
-  const saveDraft = () => {
+  const saveDraft = async () => {
     if (!draft) return;
-    const { isDraft: _isDraft, ...committed } = draft;
-    void _isDraft;
-    setTasks((xs) => [...xs, committed]);
+    const { isDraft: _, ...draftData } = draft;
+    try {
+      const result = await apiFetch<ApiTodo>('/api/todos', {
+        method: 'POST',
+        body: JSON.stringify({ title: draftData.title, cadence: draftData.cadence }),
+      });
+      setTasks((xs) => [...xs, { ...draftData, id: String(result.id) }]);
+    } catch {
+      setTasks((xs) => [...xs, draftData]);
+    }
     setDraft(null);
     setOpenId(null);
     setClosing(false);

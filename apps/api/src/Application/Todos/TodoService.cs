@@ -45,14 +45,12 @@ public class TodoService(
         }).ToList();
     }
 
-    public async Task<TodoResponse> CreateAsync(CreateTodoRequest request, CancellationToken ct = default)
+    public async Task<TodoResponse> CreateAsync(CreateTodoRequest request, int ownerId, CancellationToken ct = default)
     {
         await createValidator.ValidateAndThrowAsync(request, ct);
 
-        // Verify the owner exists up front for a clean error rather than a FK
-        // violation on save. (When login lands, owner comes from the caller.)
-        var owner = await persons.GetByIdAsync(request.OwnerId, ct)
-            ?? throw new DomainException($"Owner (person {request.OwnerId}) not found.");
+        var owner = await persons.GetByIdAsync(ownerId, ct)
+            ?? throw new DomainException($"Owner (person {ownerId}) not found.");
 
         var todo = Todo.Create(request.Title, request.Cadence, owner.Id);
         await todos.AddAsync(todo, ct);
