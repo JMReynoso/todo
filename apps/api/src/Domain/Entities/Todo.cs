@@ -22,9 +22,17 @@ public class Todo : Entity
     public int Streak { get; private set; }
 
     /// <summary>
+    /// Required FK to the <see cref="Person"/> who owns this task. Every task
+    /// has an owner, so it can always be reached even when no assignee is set —
+    /// an unassigned task can never become orphaned.
+    /// </summary>
+    public int OwnerId { get; private set; }
+
+    /// <summary>
     /// Optional FK to the assigned <see cref="Person"/>. Held by id only —
     /// Person is a separate aggregate root, so we reference it across the
-    /// boundary by identity rather than holding the entity.
+    /// boundary by identity rather than holding the entity. Distinct from
+    /// <see cref="OwnerId"/>: the owner created it, the assignee does it.
     /// </summary>
     public int? AssigneeId { get; private set; }
 
@@ -38,10 +46,11 @@ public class Todo : Entity
 
     private Todo() { }
 
-    public static Todo Create(string title, Cadence cadence)
+    public static Todo Create(string title, Cadence cadence, int ownerId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(title);
-        return new Todo { Title = title, Cadence = cadence };
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(ownerId);
+        return new Todo { Title = title, Cadence = cadence, OwnerId = ownerId };
     }
 
     public void Complete() => Done = true;
@@ -63,6 +72,12 @@ public class Todo : Entity
     public void SetDate(DateOnly? date) => Date = date;
 
     public void SetNotes(string notes) => Notes = notes ?? string.Empty;
+
+    public void TransferOwnership(int ownerId)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(ownerId);
+        OwnerId = ownerId;
+    }
 
     public void AssignTo(int personId) => AssigneeId = personId;
 

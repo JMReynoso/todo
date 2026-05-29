@@ -46,7 +46,7 @@ public static class Seeder
 
     private static void SeedTodos(AppDbContext db, int aliceId, int bobId)
     {
-        var once = Todo.Create("Renew passport", Cadence.Once);
+        var once = Todo.Create("Renew passport", Cadence.Once, aliceId);
         once.SetDueOn(DateOnly.FromDateTime(DateTime.UtcNow.AddMonths(3)));
         once.SetPriority(Priority.High);
         once.AssignTo(aliceId);
@@ -57,7 +57,7 @@ public static class Seeder
             "Schedule appointment",
             "Pay processing fee");
 
-        var daily = Todo.Create("Morning standup", Cadence.Daily);
+        var daily = Todo.Create("Morning standup", Cadence.Daily, aliceId);
         daily.SetDue("9:00a");
         daily.AssignTo(aliceId);
         daily.IncrementStreak();
@@ -68,7 +68,8 @@ public static class Seeder
             "Surface blockers",
             "Check calendar");
 
-        var weekly = Todo.Create("Weekly groceries", Cadence.Weekly);
+        // Owned by Alice (she created it) but assigned to Bob — shows owner != assignee.
+        var weekly = Todo.Create("Weekly groceries", Cadence.Weekly, aliceId);
         weekly.SetDue("Sat");
         weekly.SetPriority(Priority.Low);
         weekly.AssignTo(bobId);
@@ -80,7 +81,7 @@ public static class Seeder
             "Dairy",
             "Cleaning supplies");
 
-        var monthly = Todo.Create("Pay rent", Cadence.Monthly);
+        var monthly = Todo.Create("Pay rent", Cadence.Monthly, bobId);
         monthly.SetDue("1st");
         monthly.SetPriority(Priority.High);
         monthly.AssignTo(bobId);
@@ -89,7 +90,7 @@ public static class Seeder
             "Confirm landlord receipt",
             "Update budget sheet");
 
-        var quarterly = Todo.Create("File quarterly taxes", Cadence.Quarterly);
+        var quarterly = Todo.Create("File quarterly taxes", Cadence.Quarterly, aliceId);
         quarterly.SetPriority(Priority.High);
         quarterly.SetNotes("Estimated payment due to IRS.");
         quarterly.AssignTo(aliceId);

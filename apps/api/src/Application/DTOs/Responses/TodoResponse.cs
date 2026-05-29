@@ -13,6 +13,7 @@ public record TodoResponse(
     DateOnly? Date,
     string Notes,
     int Streak,
+    PersonResponse Owner,
     PersonResponse? Assignee,
     DateTime CreatedAt,
     IReadOnlyList<string> Tags,

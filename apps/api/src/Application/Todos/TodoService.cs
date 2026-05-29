@@ -2,6 +2,7 @@ using api.Application.DTOs.Requests;
 using api.Application.DTOs.Responses;
 using api.Application.Mappings;
 using api.Domain.Entities;
+using api.Domain.Exceptions;
 using api.Domain.Interfaces;
 using FluentValidation;
 
@@ -30,15 +31,17 @@ public class TodoService(
     {
         var all = await todos.GetAllAsync(ct);
 
-        // Resolve assignees in one batch to avoid an N+1 of per-todo lookups.
+        // Resolve owners and assignees in one batch to avoid an N+1 of per-todo lookups.
         var people = (await persons.GetAllAsync(ct)).ToDictionary(person => person.Id);
 
         return all.Select(todo =>
         {
+            // Owner is a required FK, so the person is guaranteed to be present.
+            var owner = people[todo.OwnerId].ToResponse();
             var assignee = todo.AssigneeId is int personId && people.TryGetValue(personId, out var person)
                 ? person.ToResponse()
                 : null;
-            return todo.ToResponse(assignee);
+            return todo.ToResponse(owner, assignee);
         }).ToList();
     }
 
@@ -46,10 +49,15 @@ public class TodoService(
     {
         await createValidator.ValidateAndThrowAsync(request, ct);
 
-        var todo = Todo.Create(request.Title, request.Cadence);
+        // Verify the owner exists up front for a clean error rather than a FK
+        // violation on save. (When login lands, owner comes from the caller.)
+        var owner = await persons.GetByIdAsync(request.OwnerId, ct)
+            ?? throw new DomainException($"Owner (person {request.OwnerId}) not found.");
+
+        var todo = Todo.Create(request.Title, request.Cadence, owner.Id);
         await todos.AddAsync(todo, ct);
         await todos.SaveChangesAsync(ct);
-        return todo.ToResponse(); // newly created — no assignee yet
+        return todo.ToResponse(owner.ToResponse()); // newly created — owner known, no assignee yet
     }
 
     public async Task<TodoResponse?> UpdateAsync(int id, UpdateTodoRequest request, CancellationToken ct = default)
@@ -94,15 +102,18 @@ public class TodoService(
         return removed;
     }
 
-    // Maps a single todo, resolving its assignee Person (if any) across the aggregate.
+    // Maps a single todo, resolving its owner and assignee Persons across the aggregate.
     private async Task<TodoResponse> ToResponseAsync(Todo todo, CancellationToken ct)
     {
+        // Owner is a required FK, so the person is guaranteed to exist.
+        var owner = (await persons.GetByIdAsync(todo.OwnerId, ct))!.ToResponse();
+
         PersonResponse? assignee = null;
         if (todo.AssigneeId is int personId)
         {
             var person = await persons.GetByIdAsync(personId, ct);
             assignee = person?.ToResponse();
         }
-        return todo.ToResponse(assignee);
+        return todo.ToResponse(owner, assignee);
     }
 }

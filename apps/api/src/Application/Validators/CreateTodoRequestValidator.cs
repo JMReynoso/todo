@@ -9,5 +9,6 @@ public class CreateTodoRequestValidator : AbstractValidator<CreateTodoRequest>
     {
         RuleFor(todo => todo.Title).NotEmpty().MaximumLength(200);
         RuleFor(todo => todo.Cadence).IsInEnum();
+        RuleFor(todo => todo.OwnerId).GreaterThan(0);
     }
 }

@@ -26,6 +26,14 @@ public class TodoConfiguration : IEntityTypeConfiguration<Todo>
         todo.PrimitiveCollection(nameof(Todo.Tags))
             .UsePropertyAccessMode(PropertyAccessMode.Field);
 
+        // Owner: required FK to a Person, referenced by id only. Cascade so a
+        // person's owned tasks are removed with them — an owned task can never
+        // be left pointing at a non-existent owner. Distinct from AssigneeId.
+        todo.HasOne<Person>()
+            .WithMany()
+            .HasForeignKey(t => t.OwnerId)
+            .OnDelete(DeleteBehavior.Cascade);
+
         // Assignee: optional FK to a Person, referenced by id only (Todo and
         // Person are separate aggregate roots). No inverse navigation. SetNull
         // so deleting a person unassigns their todos rather than deleting them.

@@ -5,9 +5,10 @@ namespace api.Application.Mappings;
 
 public static class TodoMappings
 {
-    // assignee is resolved and passed in by the caller (the service), since a
-    // Todo only holds AssigneeId — loading the Person crosses the aggregate.
-    public static TodoResponse ToResponse(this Todo todo, PersonResponse? assignee = null) => new(
+    // owner and assignee are resolved and passed in by the caller (the service),
+    // since a Todo only holds their ids — loading the Person crosses the aggregate.
+    // owner is required; assignee is optional.
+    public static TodoResponse ToResponse(this Todo todo, PersonResponse owner, PersonResponse? assignee = null) => new(
         todo.Id,
         todo.Title,
         todo.Cadence,
@@ -18,6 +19,7 @@ public static class TodoMappings
         todo.Date,
         todo.Notes,
         todo.Streak,
+        owner,
         assignee,
         todo.CreatedAt,
         todo.Tags,
