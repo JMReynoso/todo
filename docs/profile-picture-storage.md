@@ -116,3 +116,73 @@ public void SetPhotoUrl(string? photoUrl) => PhotoUrl = photoUrl;
 
 No migration is required for uploads themselves — `PhotoUrl` already exists on
 the `Person` entity.
+
+---
+
+## Displaying a photo in the frontend
+
+The frontend (`apps/web`) never touches the Docker volume directly. It gets the
+photo in two steps over HTTP.
+
+### Step 1 — fetch the person to get the photo path
+
+Call `GET /api/persons` (or `GET /api/persons/{id}`). The response includes the
+stored path:
+
+```json
+{
+  "id": 1,
+  "name": "Alice Chen",
+  "photoUrl": "/uploads/avatars/1-9f3c2a….webp"
+}
+```
+
+`photoUrl` is just a **path**, not a full URL — it has no hostname.
+
+### Step 2 — build the full URL and put it in an `<img>`
+
+Prefix the path with the API's base URL so the browser knows where to send the
+request:
+
+```ts
+const API_URL = process.env.NEXT_PUBLIC_API_URL // e.g. "http://localhost:5091"
+
+const photoSrc = person.photoUrl ? `${API_URL}${person.photoUrl}` : null
+// → "http://localhost:5091/uploads/avatars/1-9f3c2a….webp"
+```
+
+Then use it as the `src` on an `<img>` tag:
+
+```tsx
+{photoSrc && <img src={photoSrc} alt={person.name} />}
+```
+
+The `Avatar` component in `apps/web/app/_components/atoms/Avatar.tsx` already
+does this — if `person.photo` is a non-empty string it renders an `<img>`,
+otherwise it falls back to the person's initials.
+
+### What actually happens when the browser loads that URL
+
+1. Browser requests `http://localhost:5091/uploads/avatars/1-9f3c2a….webp`.
+2. The request hits the API container — **not** a controller, but the static
+   file middleware configured in `Program.cs`.
+3. The middleware reads the file from the `uploads_data` Docker volume (mounted
+   at `/app/uploads` inside the API container) and streams the bytes back.
+4. The browser renders the image.
+
+The frontend container has **no access** to the volume — it never needs it.
+Everything goes through the API over HTTP.
+
+### Enabling `NEXT_PUBLIC_API_URL`
+
+The environment variable is defined but commented out in
+`infra/docker-compose.dev.yml`:
+
+```yaml
+# environment:
+#   NEXT_PUBLIC_API_URL: http://localhost:5091
+```
+
+Uncomment those two lines before making any API calls from the frontend.
+`NEXT_PUBLIC_` variables are baked into the Next.js JS bundle at build time, so
+the dev server needs a restart after changing them.
