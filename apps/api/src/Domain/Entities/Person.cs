@@ -7,6 +7,7 @@ public class Person : Entity
     public string Color { get; private set; } = string.Empty;
     public string Email { get; private set; } = string.Empty;
     public string? PhotoUrl { get; private set; }
+    public string? PasswordHash { get; private set; }
 
     /// <summary>
     /// Owned scoring settings. Stored by EF as additional columns on the
@@ -66,4 +67,6 @@ public class Person : Entity
     }
 
     public void SetPhotoUrl(string? photoUrl) => PhotoUrl = photoUrl;
+
+    public void SetPasswordHash(string? hash) => PasswordHash = hash;
 }

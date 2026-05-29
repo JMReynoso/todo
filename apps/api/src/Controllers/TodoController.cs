@@ -1,7 +1,9 @@
 using api.Application.DTOs.Requests;
 using api.Application.DTOs.Responses;
 using api.Application.Todos;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace api.Controllers;
 
@@ -20,10 +22,12 @@ public class TodoController(TodoService todos) : ControllerBase
         return todo is null ? NotFound() : Ok(todo);
     }
 
+    [Authorize]
     [HttpPost]
     public async Task<ActionResult<TodoResponse>> Create(CreateTodoRequest request, CancellationToken ct)
     {
-        var created = await todos.CreateAsync(request, ct);
+        var ownerId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        var created = await todos.CreateAsync(request, ownerId, ct);
         return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
     }
 

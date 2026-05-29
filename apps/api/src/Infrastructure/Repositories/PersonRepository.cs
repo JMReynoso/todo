@@ -10,6 +10,9 @@ public class PersonRepository(AppDbContext db) : IPersonRepository
     public Task<Person?> GetByIdAsync(int id, CancellationToken ct = default) =>
         db.Persons.FirstOrDefaultAsync(p => p.Id == id, ct);
 
+    public Task<Person?> GetByEmailAsync(string email, CancellationToken ct = default) =>
+        db.Persons.FirstOrDefaultAsync(p => p.Email.ToLower() == email.ToLower(), ct);
+
     public async Task<IReadOnlyList<Person>> GetAllAsync(CancellationToken ct = default) =>
         await db.Persons.ToListAsync(ct);
 

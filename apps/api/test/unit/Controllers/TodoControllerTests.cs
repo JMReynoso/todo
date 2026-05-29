@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using api.Application.DTOs.Requests;
 using api.Application.Todos;
 using api.Application.Validators;
@@ -6,6 +7,7 @@ using api.Domain.Entities;
 using api.Domain.Enums;
 using api.Domain.Interfaces;
 using Api.UnitTests.TestSupport;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Api.UnitTests.Controllers;
@@ -78,7 +80,17 @@ public class TodoControllerTests
     public async Task Create_ReturnsCreatedAtActionPointingAtGetById()
     {
         _persons.Setup(p => p.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(PersonWithId(1));
-        var request = new CreateTodoRequest("Write tests", Cadence.Daily, OwnerId: 1);
+        var request = new CreateTodoRequest("Write tests", Cadence.Daily);
+
+        // Simulate the authenticated user that [Authorize] injects via JWT middleware.
+        _controller.ControllerContext = new ControllerContext
+        {
+            HttpContext = new DefaultHttpContext
+            {
+                User = new ClaimsPrincipal(new ClaimsIdentity(
+                    [new Claim(ClaimTypes.NameIdentifier, "1")]))
+            }
+        };
 
         var result = await _controller.Create(request, default);
 

@@ -6,9 +6,9 @@ services:
     ports:
       - "3100:3000"
     # NEXT_PUBLIC_ vars are baked into the JS bundle at build time, so they
-    # must reflect the URL a browser can reach. Uncomment once API routes exist:
-    # environment:
-    #   NEXT_PUBLIC_API_URL: http://localhost:5091
+    # must reflect the URL a browser can reach.
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:5091
     volumes:
       - ../apps/web:/app
       - /app/node_modules   # keep the container's installed packages

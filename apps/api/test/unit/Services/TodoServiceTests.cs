@@ -38,27 +38,27 @@ public class TodoServiceTests
     [Test]
     public void CreateAsync_InvalidRequest_ThrowsValidation()
     {
-        var request = new CreateTodoRequest(Title: "", Cadence.Daily, OwnerId: 1);
+        var request = new CreateTodoRequest(Title: "", Cadence.Daily);
 
-        Assert.ThrowsAsync<ValidationException>(() => _service.CreateAsync(request));
+        Assert.ThrowsAsync<ValidationException>(() => _service.CreateAsync(request, ownerId: 1));
     }
 
     [Test]
     public void CreateAsync_OwnerNotFound_Throws()
     {
         _persons.Setup(p => p.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync((Person?)null);
-        var request = new CreateTodoRequest("Write tests", Cadence.Daily, OwnerId: 1);
+        var request = new CreateTodoRequest("Write tests", Cadence.Daily);
 
-        Assert.ThrowsAsync<DomainException>(() => _service.CreateAsync(request));
+        Assert.ThrowsAsync<DomainException>(() => _service.CreateAsync(request, ownerId: 1));
     }
 
     [Test]
     public async Task CreateAsync_Valid_PersistsAndReturnsResponseWithOwner()
     {
         _persons.Setup(p => p.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(PersonWithId(1));
-        var request = new CreateTodoRequest("Write tests", Cadence.Daily, OwnerId: 1);
+        var request = new CreateTodoRequest("Write tests", Cadence.Daily);
 
-        var result = await _service.CreateAsync(request);
+        var result = await _service.CreateAsync(request, ownerId: 1);
 
         Assert.Multiple(() =>
         {

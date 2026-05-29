@@ -30,8 +30,10 @@ public static class Seeder
     private static (Person alice, Person bob) SeedPersons(AppDbContext db)
     {
         var alice = Person.Create("Alice Chen", "AC", "#7C3AED", "alice@example.com");
+        alice.SetPasswordHash(BCrypt.Net.BCrypt.HashPassword("alice123"));
 
         var bob = Person.Create("Bob Reyes", "BR", "#0EA5E9", "bob@example.com");
+        bob.SetPasswordHash(BCrypt.Net.BCrypt.HashPassword("bob123"));
         bob.ReplaceScoring(ScoringSettings.Create(
             includeDaily: true,
             includeWeekly: true,
