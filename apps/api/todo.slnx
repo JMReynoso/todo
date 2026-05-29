@@ -6,4 +6,7 @@
     <Project Path="src/Controllers/Controllers.csproj" />
     <Project Path="src/Infrastructure/Infrastructure.csproj" />
   </Folder>
+  <Folder Name="/test/">
+    <Project Path="test/unit/Api.UnitTests.csproj" />
+  </Folder>
 </Solution>
