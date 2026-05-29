@@ -1,10 +1,14 @@
+using System.Text;
 using api.Application;
+using api.Application.Auth;
 using api.Infrastructure;
 using api.Infrastructure.Persistence;
 using api.Infrastructure.Storage;
 using Hangfire;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
+using Microsoft.IdentityModel.Tokens;
 using Serilog;
 using Serilog.Events;
 
@@ -24,6 +28,25 @@ try
         .ReadFrom.Configuration(context.Configuration)
         .ReadFrom.Services(services)
         .Enrich.FromLogContext());
+
+    builder.Services.AddCors(options => options.AddDefaultPolicy(policy =>
+        policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod()));
+
+    var jwtSecret = builder.Configuration["Jwt:Secret"]!;
+    builder.Services.Configure<JwtOptions>(o => o.Secret = jwtSecret);
+    builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+        .AddJwtBearer(options =>
+        {
+            options.TokenValidationParameters = new TokenValidationParameters
+            {
+                ValidateIssuerSigningKey = true,
+                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret)),
+                ValidateIssuer = false,
+                ValidateAudience = false,
+                RequireExpirationTime = false,
+                ValidateLifetime = false,
+            };
+        });
 
     builder.Services.AddControllers();
     builder.Services.AddApplication();
@@ -69,7 +92,9 @@ try
     app.MapGet("/", () => Results.Redirect("/swagger")).ExcludeFromDescription();
 
 
+    app.UseCors();
     app.UseHttpsRedirection();
+    app.UseAuthentication();
     app.UseAuthorization();
     app.MapControllers();
 

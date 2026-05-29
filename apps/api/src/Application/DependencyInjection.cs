@@ -1,4 +1,5 @@
 using System.Reflection;
+using api.Application.Auth;
 using api.Application.Persons;
 using api.Application.Scoring;
 using api.Application.Todos;
@@ -16,6 +17,7 @@ public static class DependencyInjection
         services.AddScoped<TodoService>();
         services.AddScoped<PersonService>();
         services.AddScoped<ScoringService>();
+        services.AddScoped<AuthService>();
 
         return services;
     }
