@@ -4,7 +4,7 @@ services:
       context: ../apps/web
       dockerfile: Dockerfile.dev
     ports:
-      - "3000:3000"
+      - "3100:3000"
     environment:
       # NEXT_PUBLIC_ vars are baked into the JS bundle at build time, so they
       # must reflect the URL a browser can reach. Set this once API routes exist.
