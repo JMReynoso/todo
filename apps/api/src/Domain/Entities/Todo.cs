@@ -2,7 +2,7 @@ using api.Domain.Enums;
 
 namespace api.Domain.Entities;
 
-public class Task : Entity
+public class Todo : Entity
 {
     public string Title { get; private set; } = string.Empty;
     public Cadence Cadence { get; private set; }
@@ -20,7 +20,21 @@ public class Task : Entity
 
     public string Notes { get; private set; } = string.Empty;
     public int Streak { get; private set; }
-    public PersonId? Assignee { get; private set; }
+
+    /// <summary>
+    /// Required FK to the <see cref="Person"/> who owns this task. Every task
+    /// has an owner, so it can always be reached even when no assignee is set —
+    /// an unassigned task can never become orphaned.
+    /// </summary>
+    public int OwnerId { get; private set; }
+
+    /// <summary>
+    /// Optional FK to the assigned <see cref="Person"/>. Held by id only —
+    /// Person is a separate aggregate root, so we reference it across the
+    /// boundary by identity rather than holding the entity. Distinct from
+    /// <see cref="OwnerId"/>: the owner created it, the assignee does it.
+    /// </summary>
+    public int? AssigneeId { get; private set; }
 
     public DateTime CreatedAt { get; private set; } = DateTime.UtcNow;
 
@@ -32,10 +46,11 @@ public class Task : Entity
 
     private Todo() { }
 
-    public static Todo Create(string title, Cadence cadence)
+    public static Todo Create(string title, Cadence cadence, int ownerId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(title);
-        return new Todo { Title = title, Cadence = cadence };
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(ownerId);
+        return new Todo { Title = title, Cadence = cadence, OwnerId = ownerId };
     }
 
     public void Complete() => Done = true;
@@ -58,7 +73,15 @@ public class Task : Entity
 
     public void SetNotes(string notes) => Notes = notes ?? string.Empty;
 
-    public void SetAssignee(PersonId? assignee) => Assignee = assignee;
+    public void TransferOwnership(int ownerId)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(ownerId);
+        OwnerId = ownerId;
+    }
+
+    public void AssignTo(int personId) => AssigneeId = personId;
+
+    public void Unassign() => AssigneeId = null;
 
     public void IncrementStreak() => Streak++;
 
@@ -79,32 +102,4 @@ public class Task : Entity
     }
 
     public bool RemoveSubtask(Subtask subtask) => _subtasks.Remove(subtask);
-
-    public string getTitle()
-    {
-        return Title;
-    }
-    public DateOnly? getDueOn()    {
-        return DueOn;
-    }
-    public string getNotes()      {
-        return Notes;
-    }
-    public PersonId? getAssignee() {
-        return Assignee;
-    }
-    public int getStreak()          {
-        return Streak;
-    }
-    public List<Subtask> getSubtasks() {
-        return _subtasks;
-    }
-    public List<string> getTags()      {
-        return _tags;
-    }
-
-    public Task GetTask()
-    {
-        return this;
-    }
 }

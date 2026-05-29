@@ -6,12 +6,22 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
-  <!-- Prevent the api project from globbing source files that belong to the src/ sub-projects -->
+  <!-- Prevent the api project from globbing source files that belong to the
+       src/ sub-projects or the test/ projects (they have their own csproj). -->
   <ItemGroup>
     <Compile Remove="src\**\*.cs" />
+    <Compile Remove="test\**\*.cs" />
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Required on the startup project for the EF Core CLI tools (migrations).
+         Infrastructure references it too, but with PrivateAssets=all so it
+         doesn't flow through here. -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.*">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+
     <!-- FluentValidation ASP.NET Core integration -->
     <PackageReference Include="FluentValidation.AspNetCore" Version="11.*" />
 
@@ -27,6 +37,7 @@
 
   <ItemGroup>
     <ProjectReference Include="src\Application\Application.csproj" />
+    <ProjectReference Include="src\Controllers\Controllers.csproj" />
     <ProjectReference Include="src\Infrastructure\Infrastructure.csproj" />
   </ItemGroup>
 

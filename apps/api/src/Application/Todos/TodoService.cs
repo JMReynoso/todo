@@ -1,0 +1,119 @@
+using api.Application.DTOs.Requests;
+using api.Application.DTOs.Responses;
+using api.Application.Mappings;
+using api.Domain.Entities;
+using api.Domain.Exceptions;
+using api.Domain.Interfaces;
+using FluentValidation;
+
+namespace api.Application.Todos;
+
+/// <summary>
+/// Application service for Todo operations: validates incoming requests, drives
+/// the domain via <see cref="ITodoRepository"/>, owns the unit-of-work boundary
+/// (the repo only stages changes), and maps entities to response DTOs. Resolves
+/// the assigned <see cref="Person"/> (held by id on the Todo) via the person repo.
+/// </summary>
+public class TodoService(
+    ITodoRepository todos,
+    IPersonRepository persons,
+    IValidator<CreateTodoRequest> createValidator,
+    IValidator<UpdateTodoRequest> updateValidator,
+    IValidator<CreateSubtaskRequest> subtaskValidator)
+{
+    public async Task<TodoResponse?> GetByIdAsync(int id, CancellationToken ct = default)
+    {
+        var todo = await todos.GetByIdAsync(id, ct);
+        return todo is null ? null : await ToResponseAsync(todo, ct);
+    }
+
+    public async Task<IReadOnlyList<TodoResponse>> GetAllAsync(CancellationToken ct = default)
+    {
+        var all = await todos.GetAllAsync(ct);
+
+        // Resolve owners and assignees in one batch to avoid an N+1 of per-todo lookups.
+        var people = (await persons.GetAllAsync(ct)).ToDictionary(person => person.Id);
+
+        return all.Select(todo =>
+        {
+            // Owner is a required FK, so the person is guaranteed to be present.
+            var owner = people[todo.OwnerId].ToResponse();
+            var assignee = todo.AssigneeId is int personId && people.TryGetValue(personId, out var person)
+                ? person.ToResponse()
+                : null;
+            return todo.ToResponse(owner, assignee);
+        }).ToList();
+    }
+
+    public async Task<TodoResponse> CreateAsync(CreateTodoRequest request, CancellationToken ct = default)
+    {
+        await createValidator.ValidateAndThrowAsync(request, ct);
+
+        // Verify the owner exists up front for a clean error rather than a FK
+        // violation on save. (When login lands, owner comes from the caller.)
+        var owner = await persons.GetByIdAsync(request.OwnerId, ct)
+            ?? throw new DomainException($"Owner (person {request.OwnerId}) not found.");
+
+        var todo = Todo.Create(request.Title, request.Cadence, owner.Id);
+        await todos.AddAsync(todo, ct);
+        await todos.SaveChangesAsync(ct);
+        return todo.ToResponse(owner.ToResponse()); // newly created — owner known, no assignee yet
+    }
+
+    public async Task<TodoResponse?> UpdateAsync(int id, UpdateTodoRequest request, CancellationToken ct = default)
+    {
+        await updateValidator.ValidateAndThrowAsync(request, ct);
+
+        var todo = await todos.GetByIdAsync(id, ct);
+        if (todo is null) return null;
+
+        todo.SetTitle(request.Title);
+        todo.SetPriority(request.Priority);
+        todo.SetDue(request.Due);
+        todo.SetDueOn(request.DueOn);
+        todo.SetDate(request.Date);
+        todo.SetNotes(request.Notes);
+
+        if (request.AssigneeId is int assigneeId)
+            todo.AssignTo(assigneeId);
+        else
+            todo.Unassign();
+
+        await todos.SaveChangesAsync(ct);
+        return await ToResponseAsync(todo, ct);
+    }
+
+    public async Task<TodoResponse?> AddSubtaskAsync(int todoId, CreateSubtaskRequest request, CancellationToken ct = default)
+    {
+        await subtaskValidator.ValidateAndThrowAsync(request, ct);
+
+        var todo = await todos.GetByIdAsync(todoId, ct);
+        if (todo is null) return null;
+
+        todo.AddSubtask(Subtask.Create(request.Title));
+        await todos.SaveChangesAsync(ct);
+        return await ToResponseAsync(todo, ct);
+    }
+
+    public async Task<bool> RemoveAsync(int id, CancellationToken ct = default)
+    {
+        var removed = await todos.RemoveAsync(id, ct);
+        if (removed) await todos.SaveChangesAsync(ct);
+        return removed;
+    }
+
+    // Maps a single todo, resolving its owner and assignee Persons across the aggregate.
+    private async Task<TodoResponse> ToResponseAsync(Todo todo, CancellationToken ct)
+    {
+        // Owner is a required FK, so the person is guaranteed to exist.
+        var owner = (await persons.GetByIdAsync(todo.OwnerId, ct))!.ToResponse();
+
+        PersonResponse? assignee = null;
+        if (todo.AssigneeId is int personId)
+        {
+            var person = await persons.GetByIdAsync(personId, ct);
+            assignee = person?.ToResponse();
+        }
+        return todo.ToResponse(owner, assignee);
+    }
+}

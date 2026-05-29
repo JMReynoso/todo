@@ -1,10 +1,15 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0
 WORKDIR /app
 
+# EF Core CLI for `dotnet ef migrations` inside the container
+RUN dotnet tool install --global dotnet-ef --version 10.*
+ENV PATH="$PATH:/root/.dotnet/tools"
+
 # Copy project files first for a cacheable restore layer
 COPY api.csproj ./
 COPY src/Domain/Domain.csproj src/Domain/
 COPY src/Application/Application.csproj src/Application/
+COPY src/Controllers/Controllers.csproj src/Controllers/
 COPY src/Infrastructure/Infrastructure.csproj src/Infrastructure/
 RUN dotnet restore
 

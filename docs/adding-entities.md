@@ -100,11 +100,36 @@ Register the repository in `Infrastructure/DependencyInjection.cs`:
 services.AddScoped<ITodoListRepository, TodoListRepository>();
 ```
 
-Run the EF Core migration from `apps/api/`:
+### Add the migration
+
+The EF CLI is a one-time install if you don't already have it:
 ```bash
-dotnet ef migrations add AddTodoList --project src/Infrastructure --startup-project .
-dotnet ef database update --project src/Infrastructure --startup-project .
+dotnet tool install --global dotnet-ef
 ```
+
+Generate the migration from `apps/api/`. `src/Infrastructure` holds the
+`AppDbContext`; `.` (the `api` project) is the startup project that wires up DI:
+```bash
+dotnet ef migrations add AddTodoList --project src/Infrastructure --startup-project . --output-dir Persistence/Migrations --namespace api.Infrastructure.Persistence.Migrations
+```
+
+`--output-dir` is resolved relative to `--project`, so the files land in
+`src/Infrastructure/Persistence/Migrations` (next to `Configurations`).
+`--namespace` is set explicitly because the project has no `RootNamespace`
+override — without it the generated classes would be `Infrastructure.Persistence.Migrations`
+instead of matching the `api.Infrastructure.*` convention used everywhere else.
+
+This only writes the migration files — it does **not** touch the database, so
+Postgres doesn't need to be running. You do **not** run `dotnet ef database
+update`: `Program.cs` calls `db.Database.MigrateAsync()` on startup, so the app
+applies any pending migrations itself in every environment.
+
+> **Commit the generated `Persistence/Migrations/` files.** This is required for
+> production: `Dockerfile.prod` builds from source, so the migration must exist
+> at build time to be compiled into the image — `MigrateAsync()` can only apply
+> what's baked in. After adding a migration, rebuild the prod image
+> (`docker compose -f infra/docker-compose.prod.yml up --build`), not just `up`,
+> or the container runs stale code without the new migration.
 
 ## 3. Application — DTOs and validators
 

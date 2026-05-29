@@ -4,7 +4,7 @@ public class Subtask : Entity
 {
     public string Title { get; private set; } = string.Empty;
     public bool Done { get; private set; }
-    public int TaskID { get; private set; }
+    public int TodoId { get; private set; }
 
     private Subtask() { }
 
@@ -21,12 +21,5 @@ public class Subtask : Entity
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(title);
         Title = title;
-    }
-
-    public void SetTaskId(int taskId) => TaskID = taskId;
-
-    public Subtask GetSubtask()
-    {
-        return this;
     }
 }
