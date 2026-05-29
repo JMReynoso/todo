@@ -12,14 +12,17 @@ namespace Api.UnitTests.Services;
 public class PersonServiceTests
 {
     private Mock<IPersonRepository> _persons = null!;
+    private Mock<IPhotoStorage> _photoStorage = null!;
     private PersonService _service = null!;
 
     [SetUp]
     public void SetUp()
     {
         _persons = new Mock<IPersonRepository>();
+        _photoStorage = new Mock<IPhotoStorage>();
         _service = new PersonService(
             _persons.Object,
+            _photoStorage.Object,
             new CreatePersonRequestValidator(),
             new UpdatePersonRequestValidator(),
             new UpdateScoringSettingsRequestValidator());
@@ -131,6 +134,49 @@ public class PersonServiceTests
             Assert.That(result.Scoring.IncludeOnce, Is.True);
             Assert.That(result.Scoring.StreakThreshold, Is.EqualTo(7));
         });
+    }
+
+    [Test]
+    public async Task SetPhotoAsync_NotFound_ReturnsNull()
+    {
+        _persons.Setup(p => p.GetByIdAsync(9, It.IsAny<CancellationToken>())).ReturnsAsync((Person?)null);
+        using var content = new MemoryStream([1, 2, 3]);
+
+        Assert.That(await _service.SetPhotoAsync(9, content), Is.Null);
+    }
+
+    [Test]
+    public async Task SetPhotoAsync_NoExistingPhoto_StoresFileAndDoesNotDelete()
+    {
+        _persons.Setup(p => p.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(PersonWithId(1));
+        _photoStorage
+            .Setup(s => s.SaveAsync(1, It.IsAny<Stream>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync("/uploads/avatars/1-new.webp");
+        using var content = new MemoryStream([1, 2, 3]);
+
+        var result = await _service.SetPhotoAsync(1, content);
+
+        Assert.That(result, Is.Not.Null);
+        Assert.That(result!.PhotoUrl, Is.EqualTo("/uploads/avatars/1-new.webp"));
+        _persons.Verify(p => p.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+        _photoStorage.Verify(s => s.DeleteAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Test]
+    public async Task SetPhotoAsync_WithExistingPhoto_DeletesThePreviousFile()
+    {
+        var person = PersonWithId(1);
+        person.SetPhotoUrl("/uploads/avatars/1-old.webp"); // already has a photo
+        _persons.Setup(p => p.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(person);
+        _photoStorage
+            .Setup(s => s.SaveAsync(1, It.IsAny<Stream>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync("/uploads/avatars/1-new.webp");
+        using var content = new MemoryStream([1, 2, 3]);
+
+        var result = await _service.SetPhotoAsync(1, content);
+
+        Assert.That(result!.PhotoUrl, Is.EqualTo("/uploads/avatars/1-new.webp"));
+        _photoStorage.Verify(s => s.DeleteAsync("/uploads/avatars/1-old.webp", It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Test]

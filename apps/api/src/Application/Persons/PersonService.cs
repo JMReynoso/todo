@@ -14,6 +14,7 @@ namespace api.Application.Persons;
 /// </summary>
 public class PersonService(
     IPersonRepository persons,
+    IPhotoStorage photoStorage,
     IValidator<CreatePersonRequest> createValidator,
     IValidator<UpdatePersonRequest> updateValidator,
     IValidator<UpdateScoringSettingsRequest> scoringValidator)
@@ -73,6 +74,32 @@ public class PersonService(
             request.StreakThreshold));
 
         await persons.SaveChangesAsync(ct);
+        return person.ToResponse();
+    }
+
+    /// <summary>
+    /// Stores the uploaded photo and saves its URL on the person. Returns null if
+    /// the person doesn't exist. File-type/size validation happens at the edge
+    /// (the controller); this method trusts the validated stream + extension.
+    /// </summary>
+    public async Task<PersonResponse?> SetPhotoAsync(int id, Stream content, CancellationToken ct = default)
+    {
+        var person = await persons.GetByIdAsync(id, ct);
+        if (person is null) return null;
+
+        //get previous URL before we overwrite it, so we can delete the old file after saving the new one. 
+        // If there's no previous URL or the same URL is being reused, skip deletion.
+        var previousUrl = person.PhotoUrl;
+
+        var url = await photoStorage.SaveAsync(id, content, ct);
+        person.SetPhotoUrl(url);
+        await persons.SaveChangesAsync(ct);
+
+        // Delete the old file only after the new URL is committed — that way a
+        // failure here leaves an orphan file, never a person pointing at nothing.
+        if (!string.IsNullOrEmpty(previousUrl) && previousUrl != url)
+            await photoStorage.DeleteAsync(previousUrl, ct);
+
         return person.ToResponse();
     }
 

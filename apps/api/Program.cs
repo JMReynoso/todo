@@ -1,8 +1,10 @@
 using api.Application;
 using api.Infrastructure;
 using api.Infrastructure.Persistence;
+using api.Infrastructure.Storage;
 using Hangfire;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.FileProviders;
 using Serilog;
 using Serilog.Events;
 
@@ -30,6 +32,14 @@ try
     builder.Services.AddEndpointsApiExplorer();
     builder.Services.AddSwaggerGen();
 
+    // Resolve the uploads root: an absolute "PhotoStorage:RootPath" override if
+    // set, otherwise {ContentRoot}/uploads — which is /app/uploads in the
+    // container (the mounted volume) and a local folder during development.
+    var uploadsPath = builder.Configuration["PhotoStorage:RootPath"];
+    if (string.IsNullOrWhiteSpace(uploadsPath))
+        uploadsPath = Path.Combine(builder.Environment.ContentRootPath, "uploads");
+    builder.Services.Configure<PhotoStorageOptions>(options => options.RootPath = uploadsPath);
+
     var app = builder.Build();
 
     using (var scope = app.Services.CreateScope())
@@ -43,6 +53,14 @@ try
 
     app.UseSerilogRequestLogging();
 
+    // Serve uploaded photos at /uploads/* straight from disk (no controller).
+    // PhysicalFileProvider throws if the directory is missing, so ensure it exists.
+    Directory.CreateDirectory(uploadsPath);
+    app.UseStaticFiles(new StaticFileOptions
+    {
+        FileProvider = new PhysicalFileProvider(uploadsPath),
+        RequestPath = "/uploads",
+    });
 
     app.UseSwagger();
     app.UseSwaggerUI();

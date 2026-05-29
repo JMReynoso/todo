@@ -2,6 +2,7 @@ using api.Domain.Interfaces;
 using api.Infrastructure.Caching;
 using api.Infrastructure.Persistence;
 using api.Infrastructure.Repositories;
+using api.Infrastructure.Storage;
 using Hangfire;
 using Hangfire.PostgreSql;
 using Microsoft.EntityFrameworkCore;
@@ -40,6 +41,9 @@ public static class DependencyInjection
             ConnectionMultiplexer.Connect(configuration.GetConnectionString("Redis")!));
 
         services.AddSingleton<IScoreCache, RedisScoreCache>();
+
+        // Photo storage on the local filesystem (path configured in Program.cs).
+        services.AddSingleton<IPhotoStorage, LocalPhotoStorage>();
 
         // Hangfire
         services.AddHangfire(config => config
