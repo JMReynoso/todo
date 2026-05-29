@@ -1,4 +1,5 @@
 using api.Domain.Interfaces;
+using api.Infrastructure.Caching;
 using api.Infrastructure.Persistence;
 using api.Infrastructure.Repositories;
 using Hangfire;
@@ -37,6 +38,8 @@ public static class DependencyInjection
         // host without Redis running.
         services.AddSingleton<IConnectionMultiplexer>(_ =>
             ConnectionMultiplexer.Connect(configuration.GetConnectionString("Redis")!));
+
+        services.AddSingleton<IScoreCache, RedisScoreCache>();
 
         // Hangfire
         services.AddHangfire(config => config

@@ -11,12 +11,18 @@ namespace api.Application.Scoring;
 /// in <see cref="ScoringCalculator"/>. Lives in its own service rather than
 /// PersonService because it spans both the Person and Todo aggregates.
 /// </summary>
-public class ScoringService(IPersonRepository persons, ITodoRepository todos)
+public class ScoringService(IPersonRepository persons, ITodoRepository todos, IScoreCache scoreCache)
 {
     public async Task<PersonScoreResponse> CalculateScoreAsync(int personId, CancellationToken ct = default)
     {
         var person = await persons.GetByIdAsync(personId, ct)
             ?? throw new DomainException($"Person {personId} not found.");
+
+        // Scores change at most once per day, so serve today's cached value if we
+        // already computed one — skips loading every todo and re-running the math.
+        var cached = await scoreCache.GetAsync(personId, ct);
+        if (cached is not null)
+            return new PersonScoreResponse(person.Id, person.Name, cached.Value);
 
         // Materialize into memory, filter to this person's assigned todos, then
         // let the Domain rule do the C# math. (A repo-level GetByAssignee query
@@ -26,6 +32,8 @@ public class ScoringService(IPersonRepository persons, ITodoRepository todos)
             .ToList();
 
         var score = ScoringCalculator.Compute(person.Scoring, assigned);
+
+        await scoreCache.SetAsync(personId, score, ct);
 
         return new PersonScoreResponse(person.Id, person.Name, score);
     }
