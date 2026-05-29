@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
+import { useAuth } from '../_context/AuthCtx';
 import { DetailSheet } from './detail/DetailSheet';
 import { SettingsModal } from './settings/SettingsModal';
 import {
@@ -61,6 +63,16 @@ export function Shell({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional client-only mount gate
     setMounted(true);
   }, []);
+
+  const { isAuthenticated } = useAuth();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  useEffect(() => {
+    if (mounted && !isAuthenticated && pathname !== '/login') {
+      router.replace('/login');
+    }
+  }, [mounted, isAuthenticated, pathname, router]);
 
   const [tweaks, setTweak] = useTweaks(TWEAK_DEFAULTS);
   const [tasks, setTasks] = useState<Task[]>(seed);
@@ -195,6 +207,7 @@ export function Shell({ children }: { children: ReactNode }) {
   };
 
   if (!mounted) return null;
+  if (!isAuthenticated && pathname !== '/login') return null;
 
   return (
     <SettingsCtx.Provider value={settings}>
