@@ -30,8 +30,12 @@ public static class DependencyInjection
         services.AddScoped<ITodoRepository, TodoRepository>();
         services.AddScoped<IPersonRepository, PersonRepository>();
 
-        // Redis
-        services.AddSingleton<IConnectionMultiplexer>(
+        // Redis — connect lazily via a factory so the multiplexer is created on
+        // first resolution rather than during service registration. Connecting
+        // eagerly here would block app startup on Redis availability and break
+        // design-time tooling (e.g. `dotnet ef migrations`), which builds the
+        // host without Redis running.
+        services.AddSingleton<IConnectionMultiplexer>(_ =>
             ConnectionMultiplexer.Connect(configuration.GetConnectionString("Redis")!));
 
         // Hangfire
