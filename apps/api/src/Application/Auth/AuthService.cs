@@ -38,4 +38,17 @@ public class AuthService(IPersonRepository persons, IOptions<JwtOptions> jwtOpti
             person.Name,
             person.Email);
     }
+
+    /// <summary>
+    /// Validates the caller still maps to a real person and returns whether the
+    /// logout should be considered authoritative. Tokens are stateless today —
+    /// the client discards them after this call returns — so the only
+    /// server-side work is the identity check. When token revocation lands
+    /// (e.g., a Redis denylist keyed by jti until expiry), the revoke goes here.
+    /// </summary>
+    public async Task<bool> LogoutAsync(int personId, CancellationToken ct = default)
+    {
+        var person = await persons.GetByIdAsync(personId, ct);
+        return person is not null;
+    }
 }
