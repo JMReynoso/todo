@@ -18,12 +18,32 @@ jobs:
           POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
           REDIS_PASSWORD: ${{ secrets.REDIS_PASSWORD }}
+          SEED_ADMIN1_NAME: ${{ secrets.SEED_ADMIN1_NAME }}
+          SEED_ADMIN1_INITIALS: ${{ secrets.SEED_ADMIN1_INITIALS }}
+          SEED_ADMIN1_COLOR: ${{ secrets.SEED_ADMIN1_COLOR }}
+          SEED_ADMIN1_EMAIL: ${{ secrets.SEED_ADMIN1_EMAIL }}
+          SEED_ADMIN1_PASSWORD: ${{ secrets.SEED_ADMIN1_PASSWORD }}
+          SEED_ADMIN2_NAME: ${{ secrets.SEED_ADMIN2_NAME }}
+          SEED_ADMIN2_INITIALS: ${{ secrets.SEED_ADMIN2_INITIALS }}
+          SEED_ADMIN2_COLOR: ${{ secrets.SEED_ADMIN2_COLOR }}
+          SEED_ADMIN2_EMAIL: ${{ secrets.SEED_ADMIN2_EMAIL }}
+          SEED_ADMIN2_PASSWORD: ${{ secrets.SEED_ADMIN2_PASSWORD }}
         run: |
           {
             echo "POSTGRES_DB=$POSTGRES_DB"
             echo "POSTGRES_USER=$POSTGRES_USER"
             echo "POSTGRES_PASSWORD=$POSTGRES_PASSWORD"
             echo "REDIS_PASSWORD=$REDIS_PASSWORD"
+            echo "SEED_ADMIN1_NAME=$SEED_ADMIN1_NAME"
+            echo "SEED_ADMIN1_INITIALS=$SEED_ADMIN1_INITIALS"
+            echo "SEED_ADMIN1_COLOR=$SEED_ADMIN1_COLOR"
+            echo "SEED_ADMIN1_EMAIL=$SEED_ADMIN1_EMAIL"
+            echo "SEED_ADMIN1_PASSWORD=$SEED_ADMIN1_PASSWORD"
+            echo "SEED_ADMIN2_NAME=$SEED_ADMIN2_NAME"
+            echo "SEED_ADMIN2_INITIALS=$SEED_ADMIN2_INITIALS"
+            echo "SEED_ADMIN2_COLOR=$SEED_ADMIN2_COLOR"
+            echo "SEED_ADMIN2_EMAIL=$SEED_ADMIN2_EMAIL"
+            echo "SEED_ADMIN2_PASSWORD=$SEED_ADMIN2_PASSWORD"
           } > infra/.env
 
       - name: Deploy
