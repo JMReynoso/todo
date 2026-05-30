@@ -1,0 +1,37 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    name: Deploy to Mac Mini
+    runs-on: self-hosted
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Write .env
+        env:
+          POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
+          POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          REDIS_PASSWORD: ${{ secrets.REDIS_PASSWORD }}
+        run: |
+          {
+            echo "POSTGRES_DB=$POSTGRES_DB"
+            echo "POSTGRES_USER=$POSTGRES_USER"
+            echo "POSTGRES_PASSWORD=$POSTGRES_PASSWORD"
+            echo "REDIS_PASSWORD=$REDIS_PASSWORD"
+          } > infra/.env
+
+      - name: Deploy
+        run: docker compose -f infra/docker-compose.prod.yml --env-file infra/.env up -d --build --remove-orphans
+
+      - name: Prune unused images
+        run: docker image prune -f
+
+      - name: Remove .env
+        if: always()
+        run: rm -f infra/.env

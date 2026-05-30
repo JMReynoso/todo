@@ -1,0 +1,71 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  api:
+    name: API — Build & Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('apps/api/**/*.csproj') }}
+          restore-keys: ${{ runner.os }}-nuget-
+
+      - name: Restore
+        run: dotnet restore apps/api/todo.slnx
+
+      - name: Build
+        run: dotnet build apps/api/todo.slnx --no-restore --configuration Release
+
+      - name: Unit tests
+        run: >
+          dotnet test apps/api/test/unit/Api.UnitTests.csproj
+          --no-build --configuration Release --verbosity normal
+
+      - name: Integration tests
+        run: >
+          dotnet test apps/api/test/integration/Api.IntegrationTests.csproj
+          --no-build --configuration Release --verbosity normal
+
+  web:
+    name: Web — Lint & Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: latest
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+          cache-dependency-path: apps/web/pnpm-lock.yaml
+
+      - name: Install dependencies
+        working-directory: apps/web
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        working-directory: apps/web
+        run: pnpm lint
+
+      - name: Build
+        working-directory: apps/web
+        run: pnpm build
