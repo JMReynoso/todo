@@ -82,4 +82,27 @@ public class AuthServiceTests
             Assert.That(result.Token, Is.Not.Null.And.Not.Empty);
         });
     }
+
+    [Test]
+    public async Task LogoutAsync_PersonExists_ReturnsTrue()
+    {
+        var person = Person.Create("Alice Chen", "AC", "#fff", "alice@test.com").WithId(1);
+        _persons.Setup(p => p.GetByIdAsync(1, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(person);
+
+        var result = await _service.LogoutAsync(1);
+
+        Assert.That(result, Is.True);
+    }
+
+    [Test]
+    public async Task LogoutAsync_PersonNotFound_ReturnsFalse()
+    {
+        _persons.Setup(p => p.GetByIdAsync(99, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Person?)null);
+
+        var result = await _service.LogoutAsync(99);
+
+        Assert.That(result, Is.False);
+    }
 }
