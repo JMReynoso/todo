@@ -1,0 +1,123 @@
+name: CI / Deploy
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  ci:
+    name: Build & Test
+    runs-on: [self-hosted, macOS, ARM64]
+    permissions:
+      pull-requests: write
+      contents: read
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install .NET
+        run: |
+          if ! command -v dotnet >/dev/null 2>&1; then
+            brew install --cask dotnet-sdk
+          fi
+
+      - name: Install pnpm
+        run: |
+          if ! command -v pnpm >/dev/null 2>&1; then
+            npm install -g pnpm
+          fi
+
+      - name: Restore API dependencies
+        run: dotnet restore apps/api/todo.slnx
+
+      - name: Build API
+        run: dotnet build apps/api/todo.slnx --no-restore --configuration Release
+
+      - name: Unit tests
+        run: >
+          dotnet test apps/api/test/unit/Api.UnitTests.csproj
+          --no-build --configuration Release --verbosity normal
+          /p:CollectCoverage=true
+          /p:CoverletOutputFormat=cobertura
+          /p:CoverletOutput=./coverage.cobertura.xml
+          /p:Threshold=65
+          /p:ThresholdType=line
+          /p:ThresholdStat=total
+
+      - name: Integration tests
+        run: >
+          dotnet test apps/api/test/integration/Api.IntegrationTests.csproj
+          --no-build --configuration Release --verbosity normal
+
+      - name: Install web dependencies
+        working-directory: apps/web
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint web
+        working-directory: apps/web
+        run: pnpm lint
+
+      - name: Build web
+        working-directory: apps/web
+        run: pnpm build
+
+  deploy:
+    name: Deploy
+    needs: ci
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: [self-hosted, macOS, ARM64]
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Write .env
+        env:
+          POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
+          POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          REDIS_PASSWORD: ${{ secrets.REDIS_PASSWORD }}
+          SEED_ADMIN1_NAME: ${{ secrets.SEED_ADMIN1_NAME }}
+          SEED_ADMIN1_INITIALS: ${{ secrets.SEED_ADMIN1_INITIALS }}
+          SEED_ADMIN1_COLOR: ${{ secrets.SEED_ADMIN1_COLOR }}
+          SEED_ADMIN1_EMAIL: ${{ secrets.SEED_ADMIN1_EMAIL }}
+          SEED_ADMIN1_PASSWORD: ${{ secrets.SEED_ADMIN1_PASSWORD }}
+          SEED_ADMIN2_NAME: ${{ secrets.SEED_ADMIN2_NAME }}
+          SEED_ADMIN2_INITIALS: ${{ secrets.SEED_ADMIN2_INITIALS }}
+          SEED_ADMIN2_COLOR: ${{ secrets.SEED_ADMIN2_COLOR }}
+          SEED_ADMIN2_EMAIL: ${{ secrets.SEED_ADMIN2_EMAIL }}
+          SEED_ADMIN2_PASSWORD: ${{ secrets.SEED_ADMIN2_PASSWORD }}
+        run: |
+          {
+            echo "POSTGRES_DB=$POSTGRES_DB"
+            echo "POSTGRES_USER=$POSTGRES_USER"
+            echo "POSTGRES_PASSWORD=$POSTGRES_PASSWORD"
+            echo "REDIS_PASSWORD=$REDIS_PASSWORD"
+            echo "SEED_ADMIN1_NAME=$SEED_ADMIN1_NAME"
+            echo "SEED_ADMIN1_INITIALS=$SEED_ADMIN1_INITIALS"
+            echo "SEED_ADMIN1_COLOR=$SEED_ADMIN1_COLOR"
+            echo "SEED_ADMIN1_EMAIL=$SEED_ADMIN1_EMAIL"
+            echo "SEED_ADMIN1_PASSWORD=$SEED_ADMIN1_PASSWORD"
+            echo "SEED_ADMIN2_NAME=$SEED_ADMIN2_NAME"
+            echo "SEED_ADMIN2_INITIALS=$SEED_ADMIN2_INITIALS"
+            echo "SEED_ADMIN2_COLOR=$SEED_ADMIN2_COLOR"
+            echo "SEED_ADMIN2_EMAIL=$SEED_ADMIN2_EMAIL"
+            echo "SEED_ADMIN2_PASSWORD=$SEED_ADMIN2_PASSWORD"
+          } > infra/.env
+
+      - name: Deploy
+        run: |
+          docker compose -f infra/docker-compose.prod.yml --env-file infra/.env down
+          docker compose -f infra/docker-compose.prod.yml --env-file infra/.env up --build -d
+
+      - name: Prune unused images
+        run: docker image prune -f
+
+      - name: Remove .env
+        if: always()
+        run: rm -f infra/.env
