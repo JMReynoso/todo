@@ -2,6 +2,7 @@
 
 import { useEffect, useLayoutEffect, useState } from 'react';
 import { Icon } from '../atoms/Icon';
+import { useAuth } from '../../_context/AuthCtx';
 import { useMobile } from '../../_context/MobileCtx';
 import modal from '../modal.module.css';
 import type {
@@ -29,6 +30,7 @@ const TABS: { id: SettingsTab; label: string }[] = [
 
 export function SettingsModal({ settings, patch, onClose, onUploadPhoto }: SettingsModalProps) {
   const isMobile = useMobile();
+  const { isAuthenticated, logout } = useAuth();
   const [mounted, setMounted] = useState(false);
   const [closing, setClosing] = useState(false);
   useLayoutEffect(() => {
@@ -37,6 +39,15 @@ export function SettingsModal({ settings, patch, onClose, onUploadPhoto }: Setti
   const requestClose = () => {
     setClosing(true);
     setTimeout(onClose, 240);
+  };
+  // Close the modal first so its exit animation runs, then clear auth —
+  // the Shell's auth-redirect effect routes the user to /login.
+  const handleLogout = () => {
+    setClosing(true);
+    setTimeout(() => {
+      onClose();
+      logout();
+    }, 240);
   };
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -209,6 +220,45 @@ export function SettingsModal({ settings, patch, onClose, onUploadPhoto }: Setti
                 scoring={settings.scoring}
                 patch={(p: Partial<ScoringSettingsValue>) => patch('scoring', p)}
               />
+            )}
+
+            {isAuthenticated && (
+              <div
+                style={{
+                  marginTop: 28,
+                  paddingTop: 20,
+                  borderTop: '1px solid var(--line)',
+                  display: 'flex',
+                  justifyContent: 'flex-start',
+                }}
+              >
+                <button
+                  onClick={handleLogout}
+                  style={{
+                    padding: '9px 16px',
+                    borderRadius: 8,
+                    border: '1px solid var(--line)',
+                    background: 'transparent',
+                    color: 'var(--ink-2)',
+                    fontFamily: 'var(--mono)',
+                    fontSize: 12,
+                    letterSpacing: '0.08em',
+                    textTransform: 'uppercase',
+                    cursor: 'pointer',
+                    transition: 'background 140ms ease, color 140ms ease, border-color 140ms ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'var(--bg-sunken)';
+                    e.currentTarget.style.color = 'var(--ink)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'transparent';
+                    e.currentTarget.style.color = 'var(--ink-2)';
+                  }}
+                >
+                  Sign out
+                </button>
+              </div>
             )}
           </div>
         </aside>
