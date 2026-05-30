@@ -60,10 +60,10 @@ public class Todo : Entity
         return new Todo { Title = title, Cadence = cadence, OwnerId = ownerId };
     }
 
-    public void Complete()
+    public void Complete(DateOnly? completedOn = null)
     {
         Done = true;
-        LastCompletedOn = DateOnly.FromDateTime(DateTime.UtcNow);
+        LastCompletedOn = completedOn ?? DateOnly.FromDateTime(DateTime.UtcNow);
     }
 
     public void Reopen() => Done = false;

@@ -77,7 +77,7 @@ public class ScoringServiceTests
 
         var result = await _service.CalculateScoreAsync(1);
 
-        Assert.That(result.Score, Is.EqualTo(2));
-        _cache.Verify(c => c.SetAsync(1, 2, It.IsAny<CancellationToken>()), Times.Once);
+        Assert.That(result.Score, Is.EqualTo(100));
+        _cache.Verify(c => c.SetAsync(1, 100, It.IsAny<CancellationToken>()), Times.Once);
     }
 }

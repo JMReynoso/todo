@@ -15,6 +15,7 @@ public class TodoServiceTests
 {
     private Mock<ITodoRepository> _todos = null!;
     private Mock<IPersonRepository> _persons = null!;
+    private Mock<IScoreCache> _scoreCache = null!;
     private TodoService _service = null!;
 
     [SetUp]
@@ -22,11 +23,14 @@ public class TodoServiceTests
     {
         _todos = new Mock<ITodoRepository>();
         _persons = new Mock<IPersonRepository>();
+        _scoreCache = new Mock<IScoreCache>();
+        _scoreCache.Setup(c => c.InvalidateAsync(It.IsAny<int>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
 
         // Real validators — exercise the actual validation rules.
         _service = new TodoService(
             _todos.Object,
             _persons.Object,
+            _scoreCache.Object,
             new CreateTodoRequestValidator(),
             new UpdateTodoRequestValidator(),
             new CreateSubtaskRequestValidator());
@@ -34,6 +38,11 @@ public class TodoServiceTests
 
     private static Person PersonWithId(int id) =>
         Person.Create($"P{id}", "PX", "#fff", $"p{id}@x.com").WithId(id);
+
+    private static UpdateTodoRequest UpdateRequest(
+        string title = "t", Priority priority = Priority.Med,
+        int? assigneeId = null, bool done = false) =>
+        new(title, priority, "", null, null, "", assigneeId, done, []);
 
     [Test]
     public void CreateAsync_InvalidRequest_ThrowsValidation()
@@ -64,7 +73,7 @@ public class TodoServiceTests
         {
             Assert.That(result.Title, Is.EqualTo("Write tests"));
             Assert.That(result.Owner.Id, Is.EqualTo(1));
-            Assert.That(result.Assignee, Is.Null); // newly created
+            Assert.That(result.Assignee, Is.Null);
         });
         _todos.Verify(t => t.AddAsync(It.IsAny<Todo>(), It.IsAny<CancellationToken>()), Times.Once);
         _todos.Verify(t => t.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
@@ -75,9 +84,7 @@ public class TodoServiceTests
     {
         _todos.Setup(t => t.GetByIdAsync(7, It.IsAny<CancellationToken>())).ReturnsAsync((Todo?)null);
 
-        var result = await _service.GetByIdAsync(7);
-
-        Assert.That(result, Is.Null);
+        Assert.That(await _service.GetByIdAsync(7), Is.Null);
     }
 
     [Test]
@@ -105,11 +112,11 @@ public class TodoServiceTests
     {
         var todo = Todo.Create("task", Cadence.Daily, ownerId: 1).WithId(5);
         todo.AssignTo(2);
-        _todos.Setup(t => t.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new[] { todo });
+        _todos.Setup(t => t.GetAllForUserAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(new[] { todo });
         _persons.Setup(p => p.GetAllAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(new[] { PersonWithId(1), PersonWithId(2) });
 
-        var result = await _service.GetAllAsync();
+        var result = await _service.GetAllAsync(userId: 1);
 
         Assert.That(result, Has.Count.EqualTo(1));
         Assert.Multiple(() =>
@@ -123,11 +130,8 @@ public class TodoServiceTests
     public async Task UpdateAsync_NotFound_ReturnsNull()
     {
         _todos.Setup(t => t.GetByIdAsync(5, It.IsAny<CancellationToken>())).ReturnsAsync((Todo?)null);
-        var request = new UpdateTodoRequest("t", Priority.Med, "", null, null, "", AssigneeId: null);
 
-        var result = await _service.UpdateAsync(5, request);
-
-        Assert.That(result, Is.Null);
+        Assert.That(await _service.UpdateAsync(5, UpdateRequest()), Is.Null);
     }
 
     [Test]
@@ -137,9 +141,8 @@ public class TodoServiceTests
         _todos.Setup(t => t.GetByIdAsync(5, It.IsAny<CancellationToken>())).ReturnsAsync(todo);
         _persons.Setup(p => p.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(PersonWithId(1));
         _persons.Setup(p => p.GetByIdAsync(2, It.IsAny<CancellationToken>())).ReturnsAsync(PersonWithId(2));
-        var request = new UpdateTodoRequest("new", Priority.High, "Fri", null, null, "notes", AssigneeId: 2);
 
-        var result = await _service.UpdateAsync(5, request);
+        var result = await _service.UpdateAsync(5, UpdateRequest("new", Priority.High, assigneeId: 2));
 
         Assert.That(result, Is.Not.Null);
         Assert.Multiple(() =>
@@ -154,12 +157,11 @@ public class TodoServiceTests
     public async Task UpdateAsync_WithNullAssigneeId_Unassigns()
     {
         var todo = Todo.Create("old", Cadence.Daily, ownerId: 1).WithId(5);
-        todo.AssignTo(2); // start assigned
+        todo.AssignTo(2);
         _todos.Setup(t => t.GetByIdAsync(5, It.IsAny<CancellationToken>())).ReturnsAsync(todo);
         _persons.Setup(p => p.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(PersonWithId(1));
-        var request = new UpdateTodoRequest("new", Priority.Low, "", null, null, "", AssigneeId: null);
 
-        var result = await _service.UpdateAsync(5, request);
+        var result = await _service.UpdateAsync(5, UpdateRequest(assigneeId: null));
 
         Assert.That(result, Is.Not.Null);
         Assert.That(result!.Assignee, Is.Null);
@@ -170,9 +172,7 @@ public class TodoServiceTests
     {
         _todos.Setup(t => t.RemoveAsync(5, It.IsAny<CancellationToken>())).ReturnsAsync(true);
 
-        var result = await _service.RemoveAsync(5);
-
-        Assert.That(result, Is.True);
+        Assert.That(await _service.RemoveAsync(5), Is.True);
         _todos.Verify(t => t.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
@@ -181,9 +181,7 @@ public class TodoServiceTests
     {
         _todos.Setup(t => t.RemoveAsync(6, It.IsAny<CancellationToken>())).ReturnsAsync(false);
 
-        var result = await _service.RemoveAsync(6);
-
-        Assert.That(result, Is.False);
+        Assert.That(await _service.RemoveAsync(6), Is.False);
         _todos.Verify(t => t.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
     }
 
@@ -191,11 +189,8 @@ public class TodoServiceTests
     public async Task AddSubtaskAsync_NotFound_ReturnsNull()
     {
         _todos.Setup(t => t.GetByIdAsync(7, It.IsAny<CancellationToken>())).ReturnsAsync((Todo?)null);
-        var request = new CreateSubtaskRequest("sub");
 
-        var result = await _service.AddSubtaskAsync(7, request);
-
-        Assert.That(result, Is.Null);
+        Assert.That(await _service.AddSubtaskAsync(7, new CreateSubtaskRequest("sub")), Is.Null);
     }
 
     [Test]
@@ -204,9 +199,8 @@ public class TodoServiceTests
         var todo = Todo.Create("task", Cadence.Daily, ownerId: 1).WithId(5);
         _todos.Setup(t => t.GetByIdAsync(5, It.IsAny<CancellationToken>())).ReturnsAsync(todo);
         _persons.Setup(p => p.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(PersonWithId(1));
-        var request = new CreateSubtaskRequest("sub");
 
-        var result = await _service.AddSubtaskAsync(5, request);
+        var result = await _service.AddSubtaskAsync(5, new CreateSubtaskRequest("sub"));
 
         Assert.That(result, Is.Not.Null);
         Assert.That(result!.Subtasks, Has.Count.EqualTo(1));
