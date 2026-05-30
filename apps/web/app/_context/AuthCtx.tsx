@@ -1,6 +1,7 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import { API_URL } from '../_lib/apiFetch';
 
 const TOKEN_KEY = 'auth_token';
 
@@ -48,6 +49,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = () => {
+    // Fire-and-forget the server announce — local state must clear even if
+    // the API is down. apiFetch can't be used here because the server replies
+    // 204 (no body) which apiFetch tries to .json().
+    if (auth.token) {
+      fetch(`${API_URL}/api/auth/logout`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${auth.token}` },
+      }).catch(() => {});
+    }
     localStorage.removeItem(TOKEN_KEY);
     setAuth({ token: null, personId: null, name: null, email: null });
   };
