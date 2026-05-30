@@ -21,6 +21,9 @@ public class RedisScoreCache(IConnectionMultiplexer redis) : IScoreCache
     public Task SetAsync(int personId, int score, CancellationToken ct = default) =>
         redis.GetDatabase().StringSetAsync(Key(personId), score, TimeUntilEndOfUtcDay());
 
+    public Task InvalidateAsync(int personId, CancellationToken ct = default) =>
+        redis.GetDatabase().KeyDeleteAsync(Key(personId));
+
     private static TimeSpan TimeUntilEndOfUtcDay()
     {
         var now = DateTime.UtcNow;

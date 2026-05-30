@@ -15,6 +15,7 @@ public static class DependencyInjection
         services.AddValidatorsFromAssembly(Assembly.GetExecutingAssembly());
 
         services.AddScoped<TodoService>();
+        services.AddScoped<TodoResetJob>();
         services.AddScoped<PersonService>();
         services.AddScoped<ScoringService>();
         services.AddScoped<AuthService>();

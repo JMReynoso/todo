@@ -1,30 +1,34 @@
 'use client';
 
 import { useMemo } from 'react';
-import { PEOPLE } from '../_data/constants';
+import { useAuth } from '../_context/AuthCtx';
 import { useSettings } from '../_context/SettingsCtx';
+import { useTodo } from '../_context/TodoCtx';
 import type { Person, PersonId } from '../_types';
 
 /**
- * Merge live profile (name/color/photo) into the "me" entry so every avatar
- * of "me" across the app reflects current settings.
+ * Returns the full people list from context, merging the current user's live
+ * profile settings (name / color / photo) into their entry so every avatar
+ * reflects in-flight changes without waiting for an API round-trip.
  */
 export function useResolvedPeople(): Person[] {
+  const { people } = useTodo();
   const { profile } = useSettings();
+  const { personId } = useAuth();
+
   return useMemo(
     () =>
-      PEOPLE.map((person) => {
-        if (person.id !== 'me') return person;
-        const initial = (profile.name || 'Y').trim().slice(0, 1).toUpperCase();
+      people.map((person) => {
+        if (person.id !== personId) return person;
         return {
           ...person,
           name: profile.name || person.name,
           color: profile.color || person.color,
-          photo: profile.photo || null,
-          initials: initial,
+          photo: profile.photo ?? person.photo,
+          initials: (profile.name || person.name).trim().slice(0, 2).toUpperCase(),
         };
       }),
-    [profile.name, profile.color, profile.photo],
+    [people, personId, profile.name, profile.color, profile.photo],
   );
 }
 

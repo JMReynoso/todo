@@ -1,6 +1,7 @@
 using System.Text;
 using api.Application;
 using api.Application.Auth;
+using api.Application.Todos;
 using api.Infrastructure;
 using api.Infrastructure.Persistence;
 using api.Infrastructure.Storage;
@@ -75,6 +76,11 @@ try
         if (app.Environment.IsDevelopment())
             await Seeder.SeedAsync(db);
     }
+
+    RecurringJob.AddOrUpdate<TodoResetJob>(
+        "todo-daily-reset",
+        job => job.ExecuteAsync(CancellationToken.None),
+        Cron.Daily);
 
     app.UseSerilogRequestLogging();
 

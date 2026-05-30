@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '../_context/AuthCtx';
 import { DetailSheet } from './detail/DetailSheet';
@@ -25,6 +25,9 @@ import { uid } from '../_lib/uid';
 import type {
   Cadence,
   Layout,
+  Person,
+  ProfileSettings,
+  ScoringSettings,
   Settings,
   SettingsSection,
   Task,
@@ -32,11 +35,36 @@ import type {
 } from '../_types';
 
 interface ApiSubtask { id: number; title: string; done: boolean; todoId: number; }
+interface ApiPersonResponse {
+  id: number;
+  name: string;
+  initials: string;
+  color: string;
+  email: string;
+  photoUrl: string | null;
+  scoring: {
+    includeDaily: boolean;
+    includeWeekly: boolean;
+    includeMonthly: boolean;
+    includeQuarterly: boolean;
+    includeOnce: boolean;
+    streakThreshold: number;
+  };
+}
 interface ApiTodo {
   id: number; title: string; cadence: string; done: boolean;
   priority: string; due: string; dueOn: string | null; date: string | null;
   notes: string; streak: number; tags: string[]; subtasks: ApiSubtask[];
+  assignee: Pick<ApiPersonResponse, 'id'> | null;
 }
+
+const mapApiPerson = (p: ApiPersonResponse): Person => ({
+  id: p.id,
+  name: p.name,
+  initials: p.initials,
+  color: p.color,
+  photo: p.photoUrl,
+});
 
 const mapApiTodo = (t: ApiTodo): Task => ({
   id: String(t.id),
@@ -51,7 +79,7 @@ const mapApiTodo = (t: ApiTodo): Task => ({
   streak: t.streak,
   tags: t.tags,
   subtasks: t.subtasks.map(s => ({ id: String(s.id), title: s.title, done: s.done, taskId: t.id })),
-  assignee: null,
+  assignee: t.assignee?.id ?? null,
 });
 
 const TWEAK_DEFAULTS: Tweaks = {
@@ -88,7 +116,7 @@ export function Shell({ children }: { children: ReactNode }) {
     setMounted(true);
   }, []);
 
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, personId } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
 
@@ -113,12 +141,77 @@ export function Shell({ children }: { children: ReactNode }) {
   const [query, setQuery] = useState('');
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settings, setSettings] = useState<Settings>(INITIAL_SETTINGS);
+  const [people, setPeople] = useState<Person[]>([]);
   const isMobile = useIsMobile();
+
+  const settingsRef = useRef<Settings>(INITIAL_SETTINGS);
+  const profileSaveRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const scoringSaveRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const taskSaveRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingSubtaskAdds = useRef(0);
+
+  // Load all persons: full list goes into people context, current user's entry
+  // seeds the settings state.
+  useEffect(() => {
+    if (!isAuthenticated || !personId) return;
+    apiFetch<ApiPersonResponse[]>('/api/persons')
+      .then((list) => {
+        setPeople(list.map(mapApiPerson));
+        const me = list.find((p) => p.id === personId);
+        if (!me) return;
+        const s: Settings = {
+          profile: { name: me.name, email: me.email, color: me.color, photo: me.photoUrl },
+          scoring: me.scoring,
+        };
+        settingsRef.current = s;
+        setSettings(s);
+      })
+      .catch(() => {});
+  }, [isAuthenticated, personId]);
 
   const patchSettings = <S extends SettingsSection>(
     section: S,
     patch: Partial<Settings[S]>,
-  ) => setSettings((s) => ({ ...s, [section]: { ...s[section], ...patch } }));
+  ) => {
+    setSettings((s) => {
+      const next = { ...s, [section]: { ...s[section], ...patch } };
+      settingsRef.current = next;
+      return next;
+    });
+    if (!personId) return;
+    if (section === 'profile') {
+      if (profileSaveRef.current) clearTimeout(profileSaveRef.current);
+      profileSaveRef.current = setTimeout(() => {
+        const p = settingsRef.current.profile as ProfileSettings;
+        apiFetch(`/api/persons/${personId}`, {
+          method: 'PUT',
+          body: JSON.stringify({
+            name: p.name,
+            initials: (p.name || 'Y').trim().slice(0, 2).toUpperCase(),
+            color: p.color,
+            email: p.email,
+            photoUrl: p.photo ?? null,
+          }),
+        }).catch(() => {});
+      }, 600);
+    } else {
+      if (scoringSaveRef.current) clearTimeout(scoringSaveRef.current);
+      scoringSaveRef.current = setTimeout(() => {
+        const sc = settingsRef.current.scoring as ScoringSettings;
+        apiFetch(`/api/persons/${personId}/scoring`, {
+          method: 'PUT',
+          body: JSON.stringify({
+            includeDaily: sc.includeDaily,
+            includeWeekly: sc.includeWeekly,
+            includeMonthly: sc.includeMonthly,
+            includeQuarterly: sc.includeQuarterly,
+            includeOnce: sc.includeOnce,
+            streakThreshold: sc.streakThreshold,
+          }),
+        }).catch(() => {});
+      }, 600);
+    }
+  };
 
   // Apply accent CSS variables.
   useEffect(() => {
@@ -142,19 +235,104 @@ export function Shell({ children }: { children: ReactNode }) {
   const updateTask = (id: string, patch: Partial<Task>) =>
     setTasks((xs) => xs.map((x) => (x.id === id ? { ...x, ...patch } : x)));
 
+  const buildTaskBody = (t: Task) => ({
+    title: t.title || 'Untitled',
+    priority: t.priority,
+    due: t.due,
+    dueOn: t.dueOn ?? null,
+    date: t.date ?? null,
+    notes: t.notes,
+    assigneeId: t.assignee ?? null,
+    done: t.done,
+    tags: t.tags,
+  });
+
   const toggleTask = (id: string) => {
     const t = tasks.find((x) => x.id === id);
     if (!t) return;
-    updateTask(id, { done: !t.done });
+    const newDone = !t.done;
+    updateTask(id, { done: newDone });
+    const numId = Number(id);
+    if (!isNaN(numId)) {
+      apiFetch(`/api/todos/${numId}`, {
+        method: 'PUT',
+        body: JSON.stringify(buildTaskBody({ ...t, done: newDone })),
+      }).catch(() => {});
+    }
   };
 
   // Patch whichever task the detail modal is currently showing — draft or saved.
+  // For saved tasks, debounces a PUT to the API (skipped for subtask-only patches,
+  // which have their own endpoints).
   const patchOpen = (patch: Partial<Task>) => {
-    if (draft) setDraft((d) => (d ? { ...d, ...patch } : d));
-    else if (openTask) updateTask(openTask.id, patch);
+    if (draft) {
+      setDraft((d) => (d ? { ...d, ...patch } : d));
+      return;
+    }
+    if (!openTask) return;
+    updateTask(openTask.id, patch);
+    const numId = Number(openTask.id);
+    if (isNaN(numId)) return;
+    if ('subtasks' in patch && Object.keys(patch).length === 1) return;
+    const merged = { ...openTask, ...patch };
+    if (taskSaveRef.current) clearTimeout(taskSaveRef.current);
+    taskSaveRef.current = setTimeout(() => {
+      if (!merged.title.trim()) return;
+      apiFetch(`/api/todos/${numId}`, {
+        method: 'PUT',
+        body: JSON.stringify(buildTaskBody(merged)),
+      }).catch(() => {});
+    }, 600);
   };
   const toggleOpen = () => {
     if (openTask) patchOpen({ done: !openTask.done });
+  };
+
+  const toggleSubtask = (subId: string) => {
+    if (!openTask) return;
+    const taskId = openTask.id;
+    if (draft) {
+      setDraft((d) =>
+        d ? { ...d, subtasks: d.subtasks.map((s) => s.id === subId ? { ...s, done: !s.done } : s) } : d,
+      );
+      return;
+    }
+    const numTaskId = Number(taskId);
+    const numSubId = Number(subId);
+    if (isNaN(numTaskId) || isNaN(numSubId)) return;
+    const sub = openTask.subtasks.find((s) => s.id === subId);
+    if (!sub) return;
+    setTasks((xs) =>
+      xs.map((x) =>
+        x.id === taskId
+          ? { ...x, subtasks: x.subtasks.map((s) => s.id === subId ? { ...s, done: !s.done } : s) }
+          : x,
+      ),
+    );
+    apiFetch(`/api/todos/${numTaskId}/subtasks/${numSubId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ done: !sub.done }),
+    }).catch(() => {});
+  };
+
+  const deleteSubtask = (subId: string) => {
+    if (!openTask) return;
+    const taskId = openTask.id;
+    if (draft) {
+      setDraft((d) => d ? { ...d, subtasks: d.subtasks.filter((s) => s.id !== subId) } : d);
+      return;
+    }
+    const numTaskId = Number(taskId);
+    const numSubId = Number(subId);
+    if (isNaN(numTaskId) || isNaN(numSubId)) return;
+    setTasks((xs) =>
+      xs.map((x) =>
+        x.id === taskId ? { ...x, subtasks: x.subtasks.filter((s) => s.id !== subId) } : x,
+      ),
+    );
+    apiFetch(`/api/todos/${numTaskId}/subtasks/${numSubId}`, {
+      method: 'DELETE',
+    }).catch(() => {});
   };
 
   // Hover-+ creates a DRAFT (not yet committed). Modal "Save" commits it.
@@ -199,9 +377,20 @@ export function Shell({ children }: { children: ReactNode }) {
     try {
       const result = await apiFetch<ApiTodo>('/api/todos', {
         method: 'POST',
-        body: JSON.stringify({ title: draftData.title, cadence: draftData.cadence }),
+        body: JSON.stringify({
+          title: draftData.title,
+          cadence: draftData.cadence,
+          priority: draftData.priority,
+          due: draftData.due,
+          dueOn: draftData.dueOn ?? null,
+          date: draftData.date ?? null,
+          notes: draftData.notes,
+          assigneeId: draftData.assignee ?? null,
+          tags: draftData.tags,
+          subtasks: draftData.subtasks.map((s) => s.title),
+        }),
       });
-      setTasks((xs) => [...xs, { ...draftData, id: String(result.id) }]);
+      setTasks((xs) => [...xs, mapApiTodo(result)]);
     } catch {
       setTasks((xs) => [...xs, draftData]);
     }
@@ -213,6 +402,58 @@ export function Shell({ children }: { children: ReactNode }) {
     setOpenId(null);
     setDraft(null);
     setTasks((xs) => xs.filter((x) => x.id !== id));
+  };
+
+  const addSubtask = (title: string) => {
+    if (!openTask) return;
+    const numId = Number(openTask.id);
+    if (openTask.isDraft) {
+      setDraft((d) =>
+        d ? { ...d, subtasks: [...d.subtasks, { id: uid(), title, done: false, taskId: 0 }] } : d,
+      );
+      return;
+    }
+    const taskId = openTask.id;
+    const tempId = uid();
+    setTasks((xs) =>
+      xs.map((x) =>
+        x.id === taskId
+          ? { ...x, subtasks: [...x.subtasks, { id: tempId, title, done: false, taskId: numId }] }
+          : x,
+      ),
+    );
+    pendingSubtaskAdds.current += 1;
+    apiFetch<ApiTodo>(`/api/todos/${numId}/subtasks`, {
+      method: 'POST',
+      body: JSON.stringify({ title }),
+    })
+      .then((result) => {
+        pendingSubtaskAdds.current -= 1;
+        // Only replace when all concurrent adds have settled so the last
+        // response (which includes every saved subtask) wins.
+        if (pendingSubtaskAdds.current === 0) {
+          updateTask(taskId, {
+            subtasks: result.subtasks.map((s) => ({
+              id: String(s.id),
+              title: s.title,
+              done: s.done,
+              taskId: numId,
+            })),
+          });
+        }
+      })
+      .catch(() => {
+        pendingSubtaskAdds.current -= 1;
+      });
+  };
+
+  const uploadPhoto = (file: File) => {
+    if (!personId) return;
+    const body = new FormData();
+    body.append('file', file);
+    apiFetch<ApiPersonResponse>(`/api/persons/${personId}/photo`, { method: 'POST', body })
+      .then((p) => patchSettings('profile', { photo: p.photoUrl }))
+      .catch(() => {});
   };
 
   const requestClose = () => {
@@ -236,6 +477,7 @@ export function Shell({ children }: { children: ReactNode }) {
 
   const todoCtx: TodoContextValue = {
     tasks,
+    people,
     tweaks,
     query,
     setOpenId,
@@ -273,6 +515,9 @@ export function Shell({ children }: { children: ReactNode }) {
                 onToggle={toggleOpen}
                 onDelete={() => deleteTask(openTask.id)}
                 onSave={saveDraft}
+                onAddSubtask={addSubtask}
+                onToggleSubtask={toggleSubtask}
+                onDeleteSubtask={deleteSubtask}
               />
             )}
 
@@ -281,6 +526,7 @@ export function Shell({ children }: { children: ReactNode }) {
                 settings={settings}
                 patch={patchSettings}
                 onClose={() => setSettingsOpen(false)}
+                onUploadPhoto={uploadPhoto}
               />
             )}
 

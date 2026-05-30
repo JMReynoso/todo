@@ -38,6 +38,13 @@ public class Todo : Entity
 
     public DateTime CreatedAt { get; private set; } = DateTime.UtcNow;
 
+    /// <summary>
+    /// The calendar date on which this task was last completed. Used by the
+    /// reset job to determine whether the task's cadence period has rolled over.
+    /// Null if the task has never been completed.
+    /// </summary>
+    public DateOnly? LastCompletedOn { get; private set; }
+
     private readonly List<string> _tags = [];
     public IReadOnlyList<string> Tags => _tags.AsReadOnly();
 
@@ -53,7 +60,11 @@ public class Todo : Entity
         return new Todo { Title = title, Cadence = cadence, OwnerId = ownerId };
     }
 
-    public void Complete() => Done = true;
+    public void Complete()
+    {
+        Done = true;
+        LastCompletedOn = DateOnly.FromDateTime(DateTime.UtcNow);
+    }
 
     public void Reopen() => Done = false;
 
@@ -94,6 +105,13 @@ public class Todo : Entity
     }
 
     public bool RemoveTag(string tag) => _tags.Remove(tag);
+
+    public void SetTags(IEnumerable<string> tags)
+    {
+        _tags.Clear();
+        foreach (var tag in tags)
+            AddTag(tag);
+    }
 
     public void AddSubtask(Subtask subtask)
     {

@@ -10,4 +10,6 @@ public record UpdateTodoRequest(
     DateOnly? DueOn,
     DateOnly? Date,
     string Notes,
-    int? AssigneeId);
+    int? AssigneeId,
+    bool Done,
+    IReadOnlyList<string> Tags);

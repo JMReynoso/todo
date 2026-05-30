@@ -1,23 +1,27 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { CalculatingScore } from "../_components/views/CalculatingScore";
 import { PerformanceGraphs } from "../_components/views/PerformanceGraphs";
 import { ScoreReveal } from "../_components/views/ScoreReveal";
+import { useAuth } from "../_context/AuthCtx";
 import { useMobile } from "../_context/MobileCtx";
 import { useSettings } from "../_context/SettingsCtx";
 import { useTodo } from "../_context/TodoCtx";
+import { apiFetch } from "../_lib/apiFetch";
 import { tasksOnDate } from "../_lib/dates";
 import { buildHistory } from "../_lib/history";
-import type { Task } from "../_types";
+import type { Task, ApiScore } from "../_types";
 
 type Phase = "calculatingScore" | "score" | "graphs";
 
 export default function PerformanceRoute() {
   const { tasks } = useTodo();
   const { scoring } = useSettings();
+  const { personId } = useAuth();
   const isMobile = useMobile();
   const [phase, setPhase] = useState<Phase>("calculatingScore");
+  const [score, setScore] = useState(0);
 
   const counts = (t: Task): boolean => {
     if (t.cadence === "once") return scoring.includeOnce;
@@ -30,21 +34,33 @@ export default function PerformanceRoute() {
   const todayTasks = useMemo(
     () => tasksOnDate(tasks, new Date()).filter(counts),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [
-      tasks,
-      scoring.includeDaily,
-      scoring.includeWeekly,
-      scoring.includeMonthly,
-      scoring.includeQuarterly,
-      scoring.includeOnce,
-    ],
+    [tasks, scoring.includeDaily, scoring.includeWeekly, scoring.includeMonthly, scoring.includeQuarterly, scoring.includeOnce],
   );
   const doneToday = todayTasks.filter((t) => t.done).length;
   const totalToday = todayTasks.length;
-  const score =
-    totalToday === 0 ? 0 : Math.round((doneToday / totalToday) * 100);
+  const localScore = totalToday === 0 ? 0 : Math.round((doneToday / totalToday) * 100);
+
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const history = useMemo(() => buildHistory(tasks), []);
+
+  useEffect(() => {
+    if (!personId) {
+      setScore(localScore);
+      setPhase("score");
+      return;
+    }
+    apiFetch<ApiScore>(`/api/scoring/${personId}`)
+      .then((data) => {
+        setScore(data.score);
+        setPhase("score");
+      })
+      .catch(() => {
+        setScore(localScore);
+        setPhase("score");
+      });
+  // localScore intentionally omitted — we fetch once on mount, not on every task change
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [personId]);
 
   return (
     <main

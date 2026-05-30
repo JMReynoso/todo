@@ -2,27 +2,36 @@
 
 import { useRef, useState, type ChangeEvent } from 'react';
 import type { ProfileSettings as ProfileSettingsValue } from '../../_types';
+import { API_URL } from '../../_lib/apiFetch';
 import { SettingsField } from './SettingsField';
 import styles from './settings.module.css';
 
 export interface ProfileSettingsProps {
   profile: ProfileSettingsValue;
   patch: (patch: Partial<ProfileSettingsValue>) => void;
+  onUploadPhoto: (file: File) => void;
 }
 
 const PALETTE = ['#c97a3c', '#3d3a35', '#6a8c5d', '#4a76b8', '#a85878', '#7a6cb8'];
 
-export function ProfileSettings({ profile, patch }: ProfileSettingsProps) {
+export function ProfileSettings({ profile, patch, onUploadPhoto }: ProfileSettingsProps) {
   const [hover, setHover] = useState(false);
   const fileRef = useRef<HTMLInputElement | null>(null);
+
   const onPick = (e: ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files && e.target.files[0];
     if (!f) return;
-    const reader = new FileReader();
-    reader.onload = () => patch({ photo: reader.result as string });
-    reader.readAsDataURL(f);
+    onUploadPhoto(f);
     e.target.value = '';
   };
+
+  // photoUrl is a server-relative path ("/uploads/avatars/…") — prefix with the API origin.
+  const photoSrc = profile.photo
+    ? profile.photo.startsWith('/')
+      ? `${API_URL}${profile.photo}`
+      : profile.photo
+    : null;
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingTop: 12 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
@@ -51,7 +60,7 @@ export function ProfileSettings({ profile, patch }: ProfileSettingsProps) {
               height: '100%',
               borderRadius: 999,
               overflow: 'hidden',
-              background: profile.photo ? 'var(--bg)' : profile.color,
+              background: photoSrc ? 'var(--bg)' : profile.color,
               color: '#fff',
               display: 'flex',
               alignItems: 'center',
@@ -63,10 +72,10 @@ export function ProfileSettings({ profile, patch }: ProfileSettingsProps) {
               border: '2px solid var(--bg)',
             }}
           >
-            {profile.photo ? (
+            {photoSrc ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src={profile.photo}
+                src={photoSrc}
                 alt="profile"
                 style={{
                   width: '100%',
@@ -114,14 +123,14 @@ export function ProfileSettings({ profile, patch }: ProfileSettingsProps) {
                   textTransform: 'uppercase',
                 }}
               >
-                {profile.photo ? 'change' : 'upload'}
+                {photoSrc ? 'change' : 'upload'}
               </span>
             </div>
           </div>
           <input
             ref={fileRef}
             type="file"
-            accept="image/*"
+            accept=".jpg,.jpeg,.png,.webp"
             onChange={onPick}
             style={{ display: 'none' }}
           />
