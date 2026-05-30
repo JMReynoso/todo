@@ -1,16 +1,74 @@
-name: Deploy
+name: CI / Deploy
 
 on:
+  pull_request:
+    branches: [main]
   push:
     branches: [main]
 
 jobs:
-  deploy:
-    name: Deploy to Mac Mini
-    runs-on: self-hosted
-
+  ci:
+    name: Build & Test
+    runs-on: [self-hosted, macOS, ARM64]
+    permissions:
+      pull-requests: write
+      contents: read
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install .NET
+        run: |
+          if ! command -v dotnet >/dev/null 2>&1; then
+            brew install --cask dotnet-sdk
+          fi
+
+      - name: Install pnpm
+        run: |
+          if ! command -v pnpm >/dev/null 2>&1; then
+            npm install -g pnpm
+          fi
+
+      - name: Restore API dependencies
+        run: dotnet restore apps/api/todo.slnx
+
+      - name: Build API
+        run: dotnet build apps/api/todo.slnx --no-restore --configuration Release
+
+      - name: Unit tests
+        run: >
+          dotnet test apps/api/test/unit/Api.UnitTests.csproj
+          --no-build --configuration Release --verbosity normal
+
+      - name: Integration tests
+        run: >
+          dotnet test apps/api/test/integration/Api.IntegrationTests.csproj
+          --no-build --configuration Release --verbosity normal
+
+      - name: Install web dependencies
+        working-directory: apps/web
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint web
+        working-directory: apps/web
+        run: pnpm lint
+
+      - name: Build web
+        working-directory: apps/web
+        run: pnpm build
+
+  deploy:
+    name: Deploy
+    needs: ci
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: [self-hosted, macOS, ARM64]
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Write .env
         env:
@@ -47,7 +105,9 @@ jobs:
           } > infra/.env
 
       - name: Deploy
-        run: docker compose -f infra/docker-compose.prod.yml --env-file infra/.env up -d --build --remove-orphans
+        run: |
+          docker compose -f infra/docker-compose.prod.yml --env-file infra/.env down
+          docker compose -f infra/docker-compose.prod.yml --env-file infra/.env up --build -d
 
       - name: Prune unused images
         run: docker image prune -f
