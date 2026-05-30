@@ -27,10 +27,12 @@ public class ScoringService(IPersonRepository persons, ITodoRepository todos, IS
         // Materialize into memory, filter to this person's assigned todos, then
         // let the Domain rule do the C# math. (A repo-level GetByAssignee query
         // would avoid loading every todo if this becomes hot.)
-        // A task counts toward the assignee's score if assigned, otherwise toward
-        // the owner's score — unassigned tasks still belong to someone.
+        // A task counts toward the owner's score only when it hasn't been
+        // delegated to someone else. Assigned-to-a-different-person tasks
+        // are excluded from all scoring.
         var assigned = (await todos.GetAllAsync(ct))
-            .Where(todo => (todo.AssigneeId ?? todo.OwnerId) == personId)
+            .Where(todo => todo.OwnerId == personId &&
+                           (todo.AssigneeId == null || todo.AssigneeId == personId))
             .ToList();
 
         var score = ScoringCalculator.Compute(person.Scoring, assigned);

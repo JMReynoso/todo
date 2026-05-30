@@ -23,7 +23,6 @@ public class TodoResetJob(ITodoRepository todos, IScoreCache scoreCache)
             foreach (var sub in task.Subtasks)
                 sub.Reopen();
             affected.Add(task.OwnerId);
-            if (task.AssigneeId is int aId) affected.Add(aId);
         }
 
         await todos.SaveChangesAsync(ct);

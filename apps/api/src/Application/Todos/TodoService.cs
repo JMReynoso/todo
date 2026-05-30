@@ -100,11 +100,7 @@ public class TodoService(
         await todos.SaveChangesAsync(ct);
 
         if (doneChanged)
-        {
             await scoreCache.InvalidateAsync(todo.OwnerId, ct);
-            if (todo.AssigneeId is int aId && aId != todo.OwnerId)
-                await scoreCache.InvalidateAsync(aId, ct);
-        }
 
         return await ToResponseAsync(todo, ct);
     }

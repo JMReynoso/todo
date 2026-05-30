@@ -35,7 +35,7 @@ public static class ScoringCalculator
         {
             var basePoints = BasePoints[todo.Cadence];
             var multiplier = PriorityMultiplier[todo.Priority];
-            maxPossible += (basePoints + 1) * multiplier;
+            maxPossible += basePoints * multiplier;
 
             // Once tasks are either done or not — no period applies.
             // Recurring tasks only count if completed within the current window.
@@ -48,7 +48,7 @@ public static class ScoringCalculator
             earned += (basePoints + streakBonus) * multiplier;
         }
 
-        return (int)Math.Round(earned / maxPossible * 100);
+        return Math.Min(100, (int)Math.Round(earned / maxPossible * 100));
     }
 
     /// <summary>
