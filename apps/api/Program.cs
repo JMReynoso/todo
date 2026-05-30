@@ -77,11 +77,6 @@ try
             await Seeder.SeedAsync(db);
     }
 
-    RecurringJob.AddOrUpdate<TodoResetJob>(
-        "todo-daily-reset",
-        job => job.ExecuteAsync(CancellationToken.None),
-        Cron.Daily);
-
     app.UseSerilogRequestLogging();
 
     // Serve uploaded photos at /uploads/* straight from disk (no controller).
@@ -96,6 +91,12 @@ try
     app.UseSwagger();
     app.UseSwaggerUI();
     app.UseHangfireDashboard();
+
+    var jobs = app.Services.GetRequiredService<IRecurringJobManager>();
+    jobs.AddOrUpdate<TodoResetJob>(
+        "todo-daily-reset",
+        job => job.ExecuteAsync(CancellationToken.None),
+        Cron.Daily);
 
     app.MapGet("/", () => Results.Redirect("/swagger")).ExcludeFromDescription();
 
