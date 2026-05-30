@@ -24,6 +24,17 @@ services:
       ASPNETCORE_URLS: http://+:8080
       ConnectionStrings__Postgres: "Host=postgres;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}"
       ConnectionStrings__Redis: "redis:6379,password=${REDIS_PASSWORD}"
+      # Consumed only by `dotnet api.dll --seed`; ignored on normal boot.
+      Seed__Admin1Name: ${SEED_ADMIN1_NAME}
+      Seed__Admin1Initials: ${SEED_ADMIN1_INITIALS}
+      Seed__Admin1Color: ${SEED_ADMIN1_COLOR}
+      Seed__Admin1Email: ${SEED_ADMIN1_EMAIL}
+      Seed__Admin1Password: ${SEED_ADMIN1_PASSWORD}
+      Seed__Admin2Name: ${SEED_ADMIN2_NAME}
+      Seed__Admin2Initials: ${SEED_ADMIN2_INITIALS}
+      Seed__Admin2Color: ${SEED_ADMIN2_COLOR}
+      Seed__Admin2Email: ${SEED_ADMIN2_EMAIL}
+      Seed__Admin2Password: ${SEED_ADMIN2_PASSWORD}
     volumes:
       - uploads_data:/app/uploads
     restart: unless-stopped

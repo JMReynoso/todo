@@ -68,6 +68,21 @@ try
 
     var app = builder.Build();
 
+    // One-shot prod bootstrap: `dotnet api.dll --seed` short-circuits the web
+    // host. Runs migrations + ProdSeeder, then exits. Idempotent — re-running
+    // on an already-seeded database is a no-op. See ProdSeeder.cs for the
+    // required env vars (Seed__Admin*).
+    if (args.Contains("--seed"))
+    {
+        using var seedScope = app.Services.CreateScope();
+        var seedDb = seedScope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var seedConfig = seedScope.ServiceProvider.GetRequiredService<IConfiguration>();
+        await seedDb.Database.MigrateAsync();
+        await ProdSeeder.SeedAsync(seedDb, seedConfig);
+        Log.Information("Production seed complete");
+        return 0;
+    }
+
     using (var scope = app.Services.CreateScope())
     {
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
