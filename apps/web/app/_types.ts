@@ -2,7 +2,7 @@ export type Cadence = 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'once';
 
 export type Priority = 'low' | 'med' | 'high';
 
-export type PersonId = 'me' | 'maya' | 'devon' | 'sam' | 'nina';
+export type PersonId = number;
 
 export type Layout = 'stacked' | 'calendar';
 
@@ -15,8 +15,14 @@ export interface Subtask {
   done: boolean;
 }
 
+export interface ApiScore {
+  personId: number;
+  name: string;
+  score: number;
+}
+
 export interface Task {
-  id: number;
+  id: string;
   cadence: Cadence;
   title: string;
   done: boolean;

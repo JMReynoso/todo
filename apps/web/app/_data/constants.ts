@@ -1,4 +1,4 @@
-import type { AccentTheme, Cadence, CadenceDef, Person } from '../_types';
+import type { AccentTheme, Cadence, CadenceDef } from '../_types';
 
 /** Keyed by hex hero so TweakColor swatches render real chips. */
 export const ACCENTS: Record<string, AccentTheme> = {
@@ -33,14 +33,6 @@ export const CADENCES: CadenceDef[] = [
   { id: 'weekly', label: 'Weekly', note: 'this week' },
   { id: 'monthly', label: 'Monthly', note: 'this month' },
   { id: 'quarterly', label: 'Quarterly', note: 'this quarter' },
-];
-
-export const PEOPLE: Person[] = [
-  { id: 'me', name: 'You', initials: 'Y', color: 'oklch(0.62 0.14 55)' },
-  { id: 'maya', name: 'Maya O.', initials: 'MO', color: 'oklch(0.58 0.12 200)' },
-  { id: 'devon', name: 'Devon L.', initials: 'DL', color: 'oklch(0.55 0.14 290)' },
-  { id: 'sam', name: 'Sam P.', initials: 'SP', color: 'oklch(0.62 0.14 20)' },
-  { id: 'nina', name: 'Nina K.', initials: 'NK', color: 'oklch(0.55 0.12 145)' },
 ];
 
 export const URGENCY_WINDOW_HOURS: Record<Cadence, number> = {

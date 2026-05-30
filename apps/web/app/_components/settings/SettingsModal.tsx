@@ -17,6 +17,7 @@ export interface SettingsModalProps {
   settings: Settings;
   patch: <S extends SettingsSection>(section: S, patch: Partial<Settings[S]>) => void;
   onClose: () => void;
+  onUploadPhoto: (file: File) => void;
 }
 
 type SettingsTab = 'profile' | 'scoring';
@@ -26,7 +27,7 @@ const TABS: { id: SettingsTab; label: string }[] = [
   { id: 'scoring', label: 'Performance scoring' },
 ];
 
-export function SettingsModal({ settings, patch, onClose }: SettingsModalProps) {
+export function SettingsModal({ settings, patch, onClose, onUploadPhoto }: SettingsModalProps) {
   const isMobile = useMobile();
   const [mounted, setMounted] = useState(false);
   const [closing, setClosing] = useState(false);
@@ -201,6 +202,7 @@ export function SettingsModal({ settings, patch, onClose }: SettingsModalProps) 
               <ProfileSettings
                 profile={settings.profile}
                 patch={(p: Partial<ProfileSettingsValue>) => patch('profile', p)}
+                onUploadPhoto={onUploadPhoto}
               />
             ) : (
               <ScoringSettings

@@ -1,6 +1,7 @@
 using System.Text;
 using api.Application;
 using api.Application.Auth;
+using api.Application.Todos;
 using api.Infrastructure;
 using api.Infrastructure.Persistence;
 using api.Infrastructure.Storage;
@@ -90,6 +91,12 @@ try
     app.UseSwagger();
     app.UseSwaggerUI();
     app.UseHangfireDashboard();
+
+    var jobs = app.Services.GetRequiredService<IRecurringJobManager>();
+    jobs.AddOrUpdate<TodoResetJob>(
+        "todo-daily-reset",
+        job => job.ExecuteAsync(CancellationToken.None),
+        Cron.Daily);
 
     app.MapGet("/", () => Results.Redirect("/swagger")).ExcludeFromDescription();
 

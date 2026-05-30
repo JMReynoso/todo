@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useContext } from 'react';
-import type { Cadence, Task, Tweaks } from '../_types';
+import type { Cadence, Person, Task, Tweaks } from '../_types';
 
 /**
  * State exposed to route pages by the (todo) shell.
@@ -12,6 +12,7 @@ import type { Cadence, Task, Tweaks } from '../_types';
  */
 export interface TodoContextValue {
   tasks: Task[];
+  people: Person[];
   tweaks: Tweaks;
   query: string;
   setOpenId: (id: string) => void;

@@ -11,9 +11,13 @@ namespace api.Controllers;
 [Route("api/todos")]
 public class TodoController(TodoService todos) : ControllerBase
 {
+    [Authorize]
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<TodoResponse>>> GetAll(CancellationToken ct)
-        => Ok(await todos.GetAllAsync(ct));
+    {
+        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        return Ok(await todos.GetAllAsync(userId, ct));
+    }
 
     [HttpGet("{id:int}")]
     public async Task<ActionResult<TodoResponse>> GetById(int id, CancellationToken ct)
@@ -43,6 +47,20 @@ public class TodoController(TodoService todos) : ControllerBase
     {
         var updated = await todos.AddSubtaskAsync(id, request, ct);
         return updated is null ? NotFound() : Ok(updated);
+    }
+
+    [HttpPatch("{id:int}/subtasks/{subId:int}")]
+    public async Task<ActionResult<TodoResponse>> ToggleSubtask(int id, int subId, ToggleSubtaskRequest request, CancellationToken ct)
+    {
+        var updated = await todos.ToggleSubtaskAsync(id, subId, request.Done, ct);
+        return updated is null ? NotFound() : Ok(updated);
+    }
+
+    [HttpDelete("{id:int}/subtasks/{subId:int}")]
+    public async Task<IActionResult> RemoveSubtask(int id, int subId, CancellationToken ct)
+    {
+        var updated = await todos.RemoveSubtaskAsync(id, subId, ct);
+        return updated is null ? NotFound() : NoContent();
     }
 
     [HttpDelete("{id:int}")]

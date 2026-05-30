@@ -12,4 +12,7 @@ public interface IScoreCache
 
     /// <summary>Caches the score until the end of the current day.</summary>
     Task SetAsync(int personId, int score, CancellationToken ct = default);
+
+    /// <summary>Removes the cached score so the next read recomputes it.</summary>
+    Task InvalidateAsync(int personId, CancellationToken ct = default);
 }

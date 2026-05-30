@@ -7,7 +7,6 @@ import { Pill } from '../atoms/Pill';
 import { useMobile } from '../../_context/MobileCtx';
 import { useSettings } from '../../_context/SettingsCtx';
 import { CADENCES } from '../../_data/constants';
-import { uid } from '../../_lib/uid';
 import modal from '../modal.module.css';
 import type { Cadence, PersonId, Priority, Task } from '../../_types';
 import { AssigneeField } from './AssigneeField';
@@ -26,6 +25,9 @@ export interface DetailSheetProps {
   onToggle: () => void;
   onDelete: () => void;
   onSave: () => void;
+  onAddSubtask: (title: string) => void;
+  onToggleSubtask: (id: string) => void;
+  onDeleteSubtask: (id: string) => void;
 }
 
 const PRIORITIES: Priority[] = ['low', 'med', 'high'];
@@ -38,6 +40,9 @@ export function DetailSheet({
   onToggle,
   onDelete,
   onSave,
+  onAddSubtask,
+  onToggleSubtask,
+  onDeleteSubtask,
 }: DetailSheetProps) {
   const { scoring } = useSettings();
   const isMobile = useMobile();
@@ -49,18 +54,10 @@ export function DetailSheet({
 
   const addSub = (title: string) => {
     if (!title.trim()) return;
-    onChange({
-      subtasks: [...task.subtasks, { id: uid(), title: title.trim(), done: false }],
-    });
+    onAddSubtask(title.trim());
   };
-  const toggleSub = (id: string) =>
-    onChange({
-      subtasks: task.subtasks.map((s) =>
-        s.id === id ? { ...s, done: !s.done } : s,
-      ),
-    });
-  const delSub = (id: string) =>
-    onChange({ subtasks: task.subtasks.filter((s) => s.id !== id) });
+  const toggleSub = (id: string) => onToggleSubtask(id);
+  const delSub = (id: string) => onDeleteSubtask(id);
 
   const [newSub, setNewSub] = useState('');
 

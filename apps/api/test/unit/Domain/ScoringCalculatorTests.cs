@@ -19,89 +19,156 @@ public class ScoringCalculatorTests
             includeOnce: true,
             streakThreshold: streakThreshold);
 
-    private static Todo DoneTodo(Cadence cadence, Priority priority = Priority.High, int streak = 0)
+    private static Todo DoneTodo(Cadence cadence, Priority priority = Priority.High, int streak = 0,
+        DateOnly? completedOn = null)
     {
         var todo = Todo.Create("task", cadence, ownerId: 1);
         todo.SetPriority(priority);
-        todo.Complete();
+        todo.Complete(completedOn ?? DateOnly.FromDateTime(DateTime.UtcNow));
         for (var i = 0; i < streak; i++) todo.IncrementStreak();
         return todo;
     }
 
+    private static Todo OpenTodo(Cadence cadence, Priority priority = Priority.High)
+    {
+        var todo = Todo.Create("task", cadence, ownerId: 1);
+        todo.SetPriority(priority);
+        return todo;
+    }
+
+    // ── Zero cases ────────────────────────────────────────────────────────────
+
     [Test]
     public void Compute_NoTodos_ReturnsZero()
     {
-        var score = ScoringCalculator.Compute(DefaultSettings(), []);
-
-        Assert.That(score, Is.Zero);
+        Assert.That(ScoringCalculator.Compute(DefaultSettings(), []), Is.Zero);
     }
 
     [Test]
-    public void Compute_IgnoresTodosThatAreNotDone()
+    public void Compute_NoIncludedCadences_ReturnsZero()
     {
-        var open = Todo.Create("task", Cadence.Daily, ownerId: 1);
-        open.SetPriority(Priority.High); // not completed
-
-        var score = ScoringCalculator.Compute(DefaultSettings(), [open]);
-
-        Assert.That(score, Is.Zero);
+        // Quarterly is excluded by DefaultSettings.
+        Assert.That(ScoringCalculator.Compute(DefaultSettings(), [DoneTodo(Cadence.Quarterly)]), Is.Zero);
     }
 
     [Test]
-    public void Compute_DailyDoneHigh_NoStreak_ScoresBaseTimesMultiplier()
+    public void Compute_AllIncludedTasksOpen_ReturnsZero()
     {
-        // (base 1 + streak 0) * High 2.0 = 2
-        var score = ScoringCalculator.Compute(DefaultSettings(), [DoneTodo(Cadence.Daily)]);
+        Assert.That(ScoringCalculator.Compute(DefaultSettings(), [OpenTodo(Cadence.Daily)]), Is.Zero);
+    }
 
-        Assert.That(score, Is.EqualTo(2));
+    // ── 100 when everything is done ───────────────────────────────────────────
+
+    [Test]
+    public void Compute_SingleTaskDone_Returns100()
+    {
+        Assert.That(ScoringCalculator.Compute(DefaultSettings(), [DoneTodo(Cadence.Daily)]), Is.EqualTo(100));
     }
 
     [Test]
-    public void Compute_ExcludedCadence_IsNotCounted()
+    public void Compute_AllTasksDone_Returns100_RegardlessOfWeights()
     {
-        // Default settings exclude Quarterly, so a completed quarterly contributes nothing.
-        var score = ScoringCalculator.Compute(DefaultSettings(), [DoneTodo(Cadence.Quarterly)]);
+        // Different cadences and priorities — score is still 100 when everything is done.
+        var todos = new[]
+        {
+            DoneTodo(Cadence.Daily, Priority.Low),
+            DoneTodo(Cadence.Weekly, Priority.High),
+        };
 
-        Assert.That(score, Is.Zero);
+        Assert.That(ScoringCalculator.Compute(DefaultSettings(), todos), Is.EqualTo(100));
     }
 
     [Test]
-    public void Compute_StreakAtThreshold_AddsBonus()
+    public void Compute_AllDoneWithStreak_Returns100_NotAbove()
     {
-        // streak (3) >= threshold (3): (base 1 + bonus 1) * High 2.0 = 4
-        var score = ScoringCalculator.Compute(DefaultSettings(), [DoneTodo(Cadence.Daily, streak: 3)]);
+        // Streak adds bonus to earned but the score is capped at 100.
+        var todo = DoneTodo(Cadence.Daily, Priority.High, streak: 5);
 
-        Assert.That(score, Is.EqualTo(4));
+        Assert.That(ScoringCalculator.Compute(DefaultSettings(), [todo]), Is.EqualTo(100));
+    }
+
+    // ── Partial completion ────────────────────────────────────────────────────
+
+    [Test]
+    public void Compute_HalfDone_EqualWeights_Returns50()
+    {
+        // Two Daily High tasks, one done: earned = 1*2 = 2, max = 2*2 = 4 → 50%.
+        var todos = new[]
+        {
+            DoneTodo(Cadence.Daily, Priority.High),
+            OpenTodo(Cadence.Daily, Priority.High),
+        };
+
+        Assert.That(ScoringCalculator.Compute(DefaultSettings(), todos), Is.EqualTo(50));
     }
 
     [Test]
-    public void Compute_StreakBelowThreshold_NoBonus()
+    public void Compute_StreakBelowThreshold_NoBonus_StillReaches100WhenDone()
     {
-        // streak (2) < threshold (3): (base 1 + bonus 0) * High 2.0 = 2
-        var score = ScoringCalculator.Compute(DefaultSettings(), [DoneTodo(Cadence.Daily, streak: 2)]);
+        // Streak of 2 < threshold 3: no bonus. But task is done, so score = 100.
+        var todo = DoneTodo(Cadence.Daily, Priority.High, streak: 2);
 
-        Assert.That(score, Is.EqualTo(2));
+        Assert.That(ScoringCalculator.Compute(DefaultSettings(), [todo]), Is.EqualTo(100));
+    }
+
+    // ── Period window ─────────────────────────────────────────────────────────
+
+    [Test]
+    public void Compute_DailyTaskCompletedYesterday_NotCountedToday()
+    {
+        // Daily-only settings: window = today only. Task done yesterday is outside.
+        var dailyOnly = ScoringSettings.Create(
+            includeDaily: true, includeWeekly: false, includeMonthly: false,
+            includeQuarterly: false, includeOnce: false, streakThreshold: 3);
+        var yesterday = DateOnly.FromDateTime(DateTime.UtcNow).AddDays(-1);
+        var todo = DoneTodo(Cadence.Daily, completedOn: yesterday);
+
+        Assert.That(ScoringCalculator.Compute(dailyOnly, [todo]), Is.Zero);
     }
 
     [Test]
-    public void Compute_SumsAllIncludedTodos()
+    public void Compute_WeeklyTaskCompletedThisWeek_IsCounted()
     {
-        // Daily High (1*2=2) + Weekly High (3*2=6) = 8, both included by default.
-        var score = ScoringCalculator.Compute(
-            DefaultSettings(),
-            [DoneTodo(Cadence.Daily), DoneTodo(Cadence.Weekly)]);
+        // Completed today — within this week's window (weekly is the longest enabled cadence).
+        var todo = DoneTodo(Cadence.Weekly);
 
-        Assert.That(score, Is.EqualTo(8));
+        Assert.That(ScoringCalculator.Compute(DefaultSettings(), [todo]), Is.EqualTo(100));
     }
 
     [Test]
-    public void Compute_AppliesPriorityMultiplier()
+    public void Compute_WeeklyTaskCompletedLastWeek_NotCounted()
     {
-        // Quarterly Med, no streak bonus (threshold high): (base 10) * Med 1.5 = 15
-        var score = ScoringCalculator.Compute(
-            AllCadences(streakThreshold: 100),
-            [DoneTodo(Cadence.Quarterly, Priority.Med)]);
+        // Completed 8 days ago — outside the current weekly window.
+        var lastWeek = DateOnly.FromDateTime(DateTime.UtcNow).AddDays(-8);
+        var todo = DoneTodo(Cadence.Weekly, completedOn: lastWeek);
 
-        Assert.That(score, Is.EqualTo(15));
+        Assert.That(ScoringCalculator.Compute(DefaultSettings(), [todo]), Is.Zero);
+    }
+
+    [Test]
+    public void Compute_LongestEnabledCadenceDeterminesWindow()
+    {
+        // Monthly is enabled: window = this month. A daily task completed yesterday
+        // is still within the monthly window and should count.
+        var settings = ScoringSettings.Create(
+            includeDaily: true, includeWeekly: false, includeMonthly: true,
+            includeQuarterly: false, includeOnce: false, streakThreshold: 3);
+
+        var yesterday = DateOnly.FromDateTime(DateTime.UtcNow).AddDays(-1);
+        var todo = DoneTodo(Cadence.Daily, completedOn: yesterday);
+
+        Assert.That(ScoringCalculator.Compute(settings, [todo]), Is.EqualTo(100));
+    }
+
+    // ── Once cadence ──────────────────────────────────────────────────────────
+
+    [Test]
+    public void Compute_OnceDone_NoPeriodCheck_IsCounted()
+    {
+        // Once tasks bypass the period window — done is done regardless of when.
+        var longAgo = DateOnly.FromDateTime(DateTime.UtcNow).AddDays(-30);
+        var todo = DoneTodo(Cadence.Once, completedOn: longAgo);
+
+        Assert.That(ScoringCalculator.Compute(AllCadences(), [todo]), Is.EqualTo(100));
     }
 }

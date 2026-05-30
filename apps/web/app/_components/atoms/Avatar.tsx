@@ -1,3 +1,4 @@
+import { API_URL } from '../../_lib/apiFetch';
 import type { Person } from '../../_types';
 
 export interface AvatarProps {
@@ -62,7 +63,7 @@ export function Avatar({ person, size = 22 }: AvatarProps) {
         {person.photo ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={person.photo}
+            src={person.photo.startsWith('/') ? `${API_URL}${person.photo}` : person.photo}
             alt=""
             style={{ width: '100%', height: '100%', objectFit: 'cover' }}
           />
