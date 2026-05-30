@@ -41,6 +41,12 @@ jobs:
         run: >
           dotnet test apps/api/test/unit/Api.UnitTests.csproj
           --no-build --configuration Release --verbosity normal
+          /p:CollectCoverage=true
+          /p:CoverletOutputFormat=cobertura
+          /p:CoverletOutput=./coverage.cobertura.xml
+          /p:Threshold=65
+          /p:ThresholdType=line
+          /p:ThresholdStat=total
 
       - name: Integration tests
         run: >
