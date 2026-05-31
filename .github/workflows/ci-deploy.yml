@@ -28,7 +28,7 @@ jobs:
       - name: Install pnpm
         run: |
           if ! command -v pnpm >/dev/null 2>&1; then
-            npm install -g pnpm
+            arch -arm64 brew install pnpm
           fi
 
       - name: Restore API dependencies
