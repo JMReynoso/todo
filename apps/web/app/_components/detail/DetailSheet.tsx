@@ -9,13 +9,13 @@ import { useSettings } from '../../_context/SettingsCtx';
 import { CADENCES } from '../../_data/constants';
 import modal from '../modal.module.css';
 import type { Cadence, PersonId, Priority, Task } from '../../_types';
+import { formatIso, nextDueOn } from '../../_lib/dates';
 import { AssigneeField } from './AssigneeField';
-import { DueOnField } from './DueOnField';
 import { MetaLabel } from './MetaLabel';
 import { SectionHead } from './SectionHead';
+import { StartsOnField } from './StartsOnField';
 import { TagEditor } from './TagEditor';
 import { TypeField } from './TypeField';
-import { WhenField } from './WhenField';
 
 export interface DetailSheetProps {
   task: Task;
@@ -111,8 +111,8 @@ export function DetailSheet({
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <Pill tone="accent">
                 {task.cadence === 'once'
-                  ? task.due
-                    ? `on ${task.due.toLowerCase()}`
+                  ? formatIso(task.startsOn)
+                    ? `on ${formatIso(task.startsOn).toLowerCase()}`
                     : 'one-off'
                   : CADENCES.find((c) => c.id === task.cadence)?.label.toLowerCase() ||
                     'task'}
@@ -218,19 +218,33 @@ export function DetailSheet({
                 marginBottom: 24,
               }}
             >
-              <MetaLabel icon="calendar">When</MetaLabel>
-              <WhenField value={task.due} onChange={(v) => onChange({ due: v })} />
+              <MetaLabel icon="calendar">Starts on</MetaLabel>
+              <StartsOnField
+                value={task.startsOn}
+                onChange={(v) =>
+                  onChange({ startsOn: v, dueOn: nextDueOn(v, task.cadence) })
+                }
+              />
 
               <MetaLabel icon="calendar">Due on</MetaLabel>
-              <DueOnField
-                value={task.dueOn}
-                onChange={(v) => onChange({ dueOn: v })}
-              />
+              {/* Derived from Starts on + cadence; locked (read-only). */}
+              <span
+                title="Calculated from Starts on and Type"
+                style={{
+                  fontSize: 14,
+                  color: task.dueOn ? 'var(--ink-2)' : 'var(--ink-4)',
+                  alignSelf: 'center',
+                }}
+              >
+                {formatIso(task.dueOn) || '—'}
+              </span>
 
               <MetaLabel>Type</MetaLabel>
               <TypeField
                 value={task.cadence}
-                onChange={(v: Cadence) => onChange({ cadence: v })}
+                onChange={(v: Cadence) =>
+                  onChange({ cadence: v, dueOn: nextDueOn(task.startsOn, v) })
+                }
               />
 
               <MetaLabel icon="user">Assignee</MetaLabel>
@@ -426,7 +440,7 @@ export function DetailSheet({
                     }}
                   >
                     {task.title.trim()
-                      ? `Save${task.due ? ` to ${task.due}` : ''}`
+                      ? `Save${formatIso(task.startsOn) ? ` for ${formatIso(task.startsOn)}` : ''}`
                       : 'Add a title to save'}
                   </button>
                   <button

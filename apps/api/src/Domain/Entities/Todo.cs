@@ -9,14 +9,21 @@ public class Todo : Entity
     public bool Done { get; private set; }
     public Priority Priority { get; private set; } = Priority.Med;
 
-    /// <summary>Free-text recurrence hint, e.g. "today", "Fri 2p", "1st", "last Sun".</summary>
-    public string Due { get; private set; } = string.Empty;
+    /// <summary>
+    /// User-chosen anchor date for this task's current cycle. Editable on the
+    /// client via a date picker. <see cref="DueOn"/> is derived from this plus
+    /// one <see cref="Cadence"/> period — the client computes and sends both,
+    /// and the reset job rolls them forward together.
+    /// </summary>
+    public DateOnly StartsOn { get; private set; } = DateOnly.FromDateTime(DateTime.UtcNow);
 
-    /// <summary>Hard deadline (optional, used by <see cref="Enums.Cadence.Once"/> tasks).</summary>
+    /// <summary>
+    /// Derived deadline: <see cref="StartsOn"/> advanced by one <see cref="Cadence"/>
+    /// period (Once tasks are due on their <see cref="StartsOn"/>). Never edited
+    /// directly by the user — locked on the client and rolled forward by the
+    /// reset job. Nullable only to tolerate legacy rows that predate the field.
+    /// </summary>
     public DateOnly? DueOn { get; private set; }
-
-    /// <summary>Anchor date used by <see cref="Enums.Cadence.Once"/> cadence.</summary>
-    public DateOnly? Date { get; private set; }
 
     public string Notes { get; private set; } = string.Empty;
     public int Streak { get; private set; }
@@ -76,13 +83,37 @@ public class Todo : Entity
 
     public void SetPriority(Priority priority) => Priority = priority;
 
-    public void SetDue(string due) => Due = due ?? string.Empty;
+    public void SetStartsOn(DateOnly startsOn) => StartsOn = startsOn;
 
     public void SetDueOn(DateOnly? dueOn) => DueOn = dueOn;
 
-    public void SetDate(DateOnly? date) => Date = date;
-
     public void SetNotes(string notes) => Notes = notes ?? string.Empty;
+
+    /// <summary>
+    /// Rolls the task into its next cycle: the current <see cref="DueOn"/> becomes
+    /// the new <see cref="StartsOn"/>, and <see cref="DueOn"/> advances by one more
+    /// <see cref="Cadence"/> period. No-op for tasks without a due date. Used by the
+    /// reset job; the period math mirrors the client's <c>nextDueOn</c> helper.
+    /// </summary>
+    public void AdvanceCycle()
+    {
+        if (DueOn is not DateOnly due) return;
+        StartsOn = due;
+        DueOn = AddPeriod(due, Cadence);
+    }
+
+    /// <summary>
+    /// Adds one <see cref="Cadence"/> period to <paramref name="date"/>. Kept in
+    /// sync with the client's period math (apps/web/app/_lib/dates.ts).
+    /// </summary>
+    public static DateOnly AddPeriod(DateOnly date, Cadence cadence) => cadence switch
+    {
+        Cadence.Daily => date.AddDays(1),
+        Cadence.Weekly => date.AddDays(7),
+        Cadence.Monthly => date.AddMonths(1),
+        Cadence.Quarterly => date.AddMonths(3),
+        _ => date, // Once: due on its anchor date, no recurrence.
+    };
 
     public void TransferOwnership(int ownerId)
     {

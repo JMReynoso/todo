@@ -8,6 +8,10 @@ public class TodoConfiguration : IEntityTypeConfiguration<Todo>
 {
     public void Configure(EntityTypeBuilder<Todo> todo)
     {
+        // StartsOn is the required anchor date; DueOn is derived from it and may
+        // be null only for legacy rows. Both are plain dates (no time component).
+        todo.Property(t => t.StartsOn).IsRequired();
+
         // Subtasks: one-to-many parent-child; cascade delete enforces the
         // aggregate-root rule that subtasks can't outlive their parent Todo.
         todo.HasMany<Subtask>(nameof(Todo.Subtasks))

@@ -20,7 +20,7 @@ import { ACCENTS } from '../_data/constants';
 import { seed } from '../_data/seed';
 import { useIsMobile } from '../_hooks/useIsMobile';
 import { apiFetch } from '../_lib/apiFetch';
-import { isoDate } from '../_lib/dates';
+import { isoDate, nextDueOn } from '../_lib/dates';
 import { uid } from '../_lib/uid';
 import type {
   Cadence,
@@ -53,7 +53,7 @@ interface ApiPersonResponse {
 }
 interface ApiTodo {
   id: number; title: string; cadence: string; done: boolean;
-  priority: string; due: string; dueOn: string | null; date: string | null;
+  priority: string; startsOn: string; dueOn: string | null;
   notes: string; streak: number; tags: string[]; subtasks: ApiSubtask[];
   assignee: Pick<ApiPersonResponse, 'id'> | null;
 }
@@ -72,9 +72,8 @@ const mapApiTodo = (t: ApiTodo): Task => ({
   cadence: t.cadence.toLowerCase() as Task['cadence'],
   done: t.done,
   priority: t.priority.toLowerCase() as Task['priority'],
-  due: t.due,
+  startsOn: t.startsOn,
   dueOn: t.dueOn ?? undefined,
-  date: t.date ?? undefined,
   notes: t.notes,
   streak: t.streak,
   tags: t.tags,
@@ -238,9 +237,9 @@ export function Shell({ children }: { children: ReactNode }) {
   const buildTaskBody = (t: Task) => ({
     title: t.title || 'Untitled',
     priority: t.priority,
-    due: t.due,
-    dueOn: t.dueOn ?? null,
-    date: t.date ?? null,
+    startsOn: t.startsOn,
+    // DueOn is derived and locked — always recompute so it stays in sync.
+    dueOn: nextDueOn(t.startsOn, t.cadence),
     notes: t.notes,
     assigneeId: t.assignee ?? null,
     done: t.done,
@@ -341,11 +340,11 @@ export function Shell({ children }: { children: ReactNode }) {
     setDraft({
       id: uid(),
       cadence: 'once',
-      date: iso,
+      startsOn: iso,
+      dueOn: nextDueOn(iso, 'once'),
       title: '',
       done: false,
       priority: 'med',
-      due: date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
       tags: [],
       subtasks: [],
       notes: '',
@@ -354,15 +353,17 @@ export function Shell({ children }: { children: ReactNode }) {
       isDraft: true,
     });
   };
-  // Click an "Add to ..." composer → spawn a draft for that cadence (no date).
+  // Click an "Add to ..." composer → spawn a draft for that cadence, anchored today.
   const createDraftFor = (cadence: Cadence) => {
+    const iso = isoDate(new Date());
     setDraft({
       id: uid(),
       cadence,
+      startsOn: iso,
+      dueOn: nextDueOn(iso, cadence),
       title: '',
       done: false,
       priority: 'med',
-      due: '',
       tags: [],
       subtasks: [],
       notes: '',
@@ -381,9 +382,8 @@ export function Shell({ children }: { children: ReactNode }) {
           title: draftData.title,
           cadence: draftData.cadence,
           priority: draftData.priority,
-          due: draftData.due,
-          dueOn: draftData.dueOn ?? null,
-          date: draftData.date ?? null,
+          startsOn: draftData.startsOn,
+          dueOn: nextDueOn(draftData.startsOn, draftData.cadence),
           notes: draftData.notes,
           assigneeId: draftData.assignee ?? null,
           tags: draftData.tags,

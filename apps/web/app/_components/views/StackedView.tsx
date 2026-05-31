@@ -51,7 +51,7 @@ export function StackedView({
             t.cadence === 'once' &&
             (!query || (t.title || '').toLowerCase().includes(query.toLowerCase())),
         )
-        .sort((a, b) => String(a.date).localeCompare(String(b.date))),
+        .sort((a, b) => String(a.startsOn).localeCompare(String(b.startsOn))),
     [tasks, query],
   );
 

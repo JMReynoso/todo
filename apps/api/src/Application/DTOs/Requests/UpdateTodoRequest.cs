@@ -6,9 +6,8 @@ namespace api.Application.DTOs.Requests;
 public record UpdateTodoRequest(
     string Title,
     Priority Priority,
-    string Due,
+    DateOnly StartsOn,
     DateOnly? DueOn,
-    DateOnly? Date,
     string Notes,
     int? AssigneeId,
     bool Done,

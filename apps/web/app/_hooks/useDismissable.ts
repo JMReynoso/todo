@@ -7,7 +7,7 @@ import { useEffect, type RefObject } from 'react';
  *   - the user clicks outside `ref`, or
  *   - presses Escape.
  *
- * Used by AssigneeField / WhenField / DueOnField / TypeField — same pattern
+ * Used by AssigneeField / StartsOnField / TypeField — same pattern
  * that previously lived inline in each one.
  */
 export function useDismissable(

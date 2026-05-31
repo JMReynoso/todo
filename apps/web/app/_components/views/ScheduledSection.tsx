@@ -32,7 +32,7 @@ export function ScheduledSection({
     const m = new Map<string, Task[]>();
     for (const t of tasks) {
       // "~" sorts after ISO dates so undated appears last in calendar context
-      const k = t.date || '~';
+      const k = t.startsOn || '~';
       if (!m.has(k)) m.set(k, []);
       m.get(k)!.push(t);
     }

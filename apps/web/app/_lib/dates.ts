@@ -1,4 +1,4 @@
-import { URGENCY_WINDOW_HOURS, WEEKDAYS } from '../_data/constants';
+import { URGENCY_WINDOW_HOURS } from '../_data/constants';
 import type { Cadence, Task } from '../_types';
 
 /**
@@ -107,18 +107,20 @@ export function isoDate(d: Date): string {
   return `${y}-${m}-${dd}`;
 }
 
-export function parseWeekday(s: string | undefined): number {
-  if (!s) return 5; // default Friday
-  const m = String(s).toLowerCase().match(/(sun|mon|tue|wed|thu|fri|sat)/);
-  return m ? (WEEKDAYS as readonly string[]).indexOf(m[1]) : 5;
-}
-
-export function parseMonthDay(s: string | undefined): number {
-  if (!s) return 1;
-  const lower = String(s).toLowerCase();
-  if (lower.includes('last')) return -1; // last day of month sentinel
-  const m = lower.match(/(\d{1,2})/);
-  return m ? Math.min(28, parseInt(m[1], 10)) : 1;
+/**
+ * Derives the locked DueOn from the user-chosen StartsOn anchor: one cadence
+ * period later. One-offs are due on their anchor. Mirrors the backend's
+ * Todo.AddPeriod — keep the two in sync.
+ */
+export function nextDueOn(startsOn: string, cadence: Cadence): string {
+  const d = new Date(startsOn + 'T00:00:00');
+  if (isNaN(d.getTime())) return startsOn;
+  if (cadence === 'daily') d.setDate(d.getDate() + 1);
+  else if (cadence === 'weekly') d.setDate(d.getDate() + 7);
+  else if (cadence === 'monthly') d.setMonth(d.getMonth() + 1);
+  else if (cadence === 'quarterly') d.setMonth(d.getMonth() + 3);
+  // 'once': due on its anchor date — no advance.
+  return isoDate(d);
 }
 
 export function tasksOnDate(tasks: Task[], date: Date): Task[] {
@@ -129,37 +131,32 @@ export function tasksOnDate(tasks: Task[], date: Date): Task[] {
   const iso = isoDate(date);
   const out: Task[] = [];
   for (const t of tasks) {
+    const anchor = t.startsOn ? new Date(t.startsOn + 'T00:00:00') : null;
     if (t.cadence === 'once') {
-      if (t.date === iso) out.push(t);
+      if (t.startsOn === iso) out.push(t); // one-off shows on its date
     } else if (t.cadence === 'daily') {
       out.push(t);
+    } else if (!anchor || isNaN(anchor.getTime())) {
+      continue; // recurring task needs a valid anchor to place
     } else if (t.cadence === 'weekly') {
-      if (parseWeekday(t.due) === wd) out.push(t);
+      if (anchor.getDay() === wd) out.push(t);
     } else if (t.cadence === 'monthly') {
-      const n = parseMonthDay(t.due);
-      const target = n === -1 ? lastDay : n;
-      if (target === dm) out.push(t);
+      if (Math.min(anchor.getDate(), lastDay) === dm) out.push(t);
     } else if (t.cadence === 'quarterly') {
-      // place on the 15th of the first month of each quarter
-      if (dm === 15 && [0, 3, 6, 9].includes(month)) out.push(t);
+      if (Math.min(anchor.getDate(), lastDay) === dm && month % 3 === anchor.getMonth() % 3)
+        out.push(t);
     }
   }
   return out;
 }
 
-export function parseLooseDate(s: string | undefined): Date | null {
-  if (!s) return null;
-  const t = Date.parse(s);
-  if (!isNaN(t)) return new Date(t);
-  // try "Mar 15" w/ current year
-  const m = String(s).match(/^([A-Za-z]{3,9})\s+(\d{1,2})$/);
-  if (m) {
-    const t2 = Date.parse(`${m[1]} ${m[2]}, ${new Date().getFullYear()}`);
-    if (!isNaN(t2)) return new Date(t2);
-  }
-  return null;
-}
-
 export function formatDate(d: Date): string {
   return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
+/** Formats an ISO yyyy-mm-dd string as a short "Mon d" label, or '' if invalid. */
+export function formatIso(iso: string | undefined): string {
+  if (!iso) return '';
+  const d = new Date(iso + 'T00:00:00');
+  return isNaN(d.getTime()) ? '' : formatDate(d);
 }
