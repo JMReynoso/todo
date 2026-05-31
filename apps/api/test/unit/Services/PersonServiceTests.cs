@@ -34,7 +34,7 @@ public class PersonServiceTests
     [Test]
     public void CreateAsync_InvalidEmail_ThrowsValidation()
     {
-        var request = new CreatePersonRequest("Alice", "AC", "#7C3AED", "not-an-email", null);
+        var request = new CreatePersonRequest("Alice", "AC", "#7C3AED", "not-an-email", "password123", null);
 
         Assert.ThrowsAsync<ValidationException>(() => _service.CreateAsync(request));
     }
@@ -42,7 +42,7 @@ public class PersonServiceTests
     [Test]
     public async Task CreateAsync_Valid_PersistsAndReturnsResponse()
     {
-        var request = new CreatePersonRequest("Alice", "AC", "#7C3AED", "alice@example.com", null);
+        var request = new CreatePersonRequest("Alice", "AC", "#7C3AED", "alice@example.com", "password123", null);
 
         var result = await _service.CreateAsync(request);
 

@@ -80,7 +80,7 @@ public class PersonControllerTests
     [Test]
     public async Task Create_ReturnsCreatedAtActionPointingAtGetById()
     {
-        var request = new CreatePersonRequest("Alice", "AC", "#7C3AED", "alice@example.com", null);
+        var request = new CreatePersonRequest("Alice", "AC", "#7C3AED", "alice@example.com", "password123", null);
 
         var result = await _controller.Create(request, default);
 

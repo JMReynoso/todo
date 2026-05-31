@@ -5,4 +5,5 @@ public record CreatePersonRequest(
     string Initials,
     string Color,
     string Email,
+    string Password,
     string? PhotoUrl);
