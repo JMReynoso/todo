@@ -48,8 +48,18 @@ public static class Seeder
 
     private static void SeedTodos(AppDbContext db, int aliceId, int bobId)
     {
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+
+        // Anchor each task on a sensible StartsOn, then derive DueOn the same way
+        // the client and reset job do (StartsOn + one cadence period).
+        void Schedule(Todo todo, DateOnly startsOn)
+        {
+            todo.SetStartsOn(startsOn);
+            todo.SetDueOn(Todo.AddPeriod(startsOn, todo.Cadence));
+        }
+
         var once = Todo.Create("Renew passport", Cadence.Once, aliceId);
-        once.SetDueOn(DateOnly.FromDateTime(DateTime.UtcNow.AddMonths(3)));
+        Schedule(once, today.AddMonths(3)); // one-off: due on its StartsOn
         once.SetPriority(Priority.High);
         once.AssignTo(aliceId);
         AddRandomSubtasks(once,
@@ -60,7 +70,7 @@ public static class Seeder
             "Pay processing fee");
 
         var daily = Todo.Create("Morning standup", Cadence.Daily, aliceId);
-        daily.SetDue("9:00a");
+        Schedule(daily, today);
         daily.AssignTo(aliceId);
         daily.IncrementStreak();
         daily.IncrementStreak();
@@ -72,7 +82,7 @@ public static class Seeder
 
         // Owned by Alice (she created it) but assigned to Bob — shows owner != assignee.
         var weekly = Todo.Create("Weekly groceries", Cadence.Weekly, aliceId);
-        weekly.SetDue("Sat");
+        Schedule(weekly, today);
         weekly.SetPriority(Priority.Low);
         weekly.AssignTo(bobId);
         weekly.AddTag("errand");
@@ -84,7 +94,7 @@ public static class Seeder
             "Cleaning supplies");
 
         var monthly = Todo.Create("Pay rent", Cadence.Monthly, bobId);
-        monthly.SetDue("1st");
+        Schedule(monthly, new DateOnly(today.Year, today.Month, 1)); // 1st of the month
         monthly.SetPriority(Priority.High);
         monthly.AssignTo(bobId);
         AddRandomSubtasks(monthly,
@@ -93,6 +103,7 @@ public static class Seeder
             "Update budget sheet");
 
         var quarterly = Todo.Create("File quarterly taxes", Cadence.Quarterly, aliceId);
+        Schedule(quarterly, today);
         quarterly.SetPriority(Priority.High);
         quarterly.SetNotes("Estimated payment due to IRS.");
         quarterly.AssignTo(aliceId);

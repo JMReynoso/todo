@@ -27,12 +27,15 @@ public class TodoResetJobTests
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
-    private static Todo CompletedTodo(Cadence cadence, DateOnly completedOn, DateOnly? dueOn = null,
+    // A done recurring task whose reopen is gated on DueOn. StartsOn defaults to
+    // dueOn when unspecified; only DueOn drives the reset decision.
+    private static Todo CompletedTodo(Cadence cadence, DateOnly dueOn, DateOnly? startsOn = null,
         int ownerId = 1)
     {
         var todo = Todo.Create("task", cadence, ownerId);
-        todo.Complete(completedOn);
-        if (dueOn is DateOnly d) todo.SetDueOn(d);
+        todo.SetStartsOn(startsOn ?? dueOn);
+        todo.SetDueOn(dueOn);
+        todo.Complete();
         return todo;
     }
 
@@ -53,12 +56,12 @@ public class TodoResetJobTests
         _scoreCache.Verify(c => c.InvalidateAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
-    // ── Daily ─────────────────────────────────────────────────────────────────
+    // ── Due-date gate ─────────────────────────────────────────────────────────
 
     [Test]
-    public async Task ExecuteAsync_DailyCompletedYesterday_ResetsTask()
+    public async Task ExecuteAsync_DueInThePast_ResetsTask()
     {
-        var todo = CompletedTodo(Cadence.Daily, completedOn: Today.AddDays(-1));
+        var todo = CompletedTodo(Cadence.Daily, dueOn: Today.AddDays(-1));
         SetupTodos(todo);
 
         await _job.ExecuteAsync();
@@ -67,9 +70,21 @@ public class TodoResetJobTests
     }
 
     [Test]
-    public async Task ExecuteAsync_DailyCompletedToday_DoesNotReset()
+    public async Task ExecuteAsync_DueToday_ResetsTask()
     {
-        var todo = CompletedTodo(Cadence.Daily, completedOn: Today);
+        // The due date has arrived (today >= DueOn), so the task reopens.
+        var todo = CompletedTodo(Cadence.Weekly, dueOn: Today);
+        SetupTodos(todo);
+
+        await _job.ExecuteAsync();
+
+        Assert.That(todo.Done, Is.False);
+    }
+
+    [Test]
+    public async Task ExecuteAsync_DueInTheFuture_DoesNotReset()
+    {
+        var todo = CompletedTodo(Cadence.Weekly, dueOn: Today.AddDays(1));
         SetupTodos(todo);
 
         await _job.ExecuteAsync();
@@ -77,122 +92,58 @@ public class TodoResetJobTests
         Assert.That(todo.Done, Is.True);
     }
 
-    // ── Weekly ────────────────────────────────────────────────────────────────
-
     [Test]
-    public async Task ExecuteAsync_WeeklyCompletedLastWeek_ResetsTask()
+    public async Task ExecuteAsync_NullDueOn_DoesNotReset()
     {
-        var lastWeek = Today.AddDays(-7);
-        var todo = CompletedTodo(Cadence.Weekly, completedOn: lastWeek);
-        SetupTodos(todo);
-
-        await _job.ExecuteAsync();
-
-        Assert.That(todo.Done, Is.False);
-    }
-
-    [Test]
-    public async Task ExecuteAsync_WeeklyCompletedThisWeek_DoesNotReset()
-    {
-        // Start of this week (Sunday) is within the current period.
-        var startOfWeek = Today.AddDays(-(int)Today.DayOfWeek);
-        var todo = CompletedTodo(Cadence.Weekly, completedOn: startOfWeek);
-        SetupTodos(todo);
-
-        await _job.ExecuteAsync();
-
-        Assert.That(todo.Done, Is.True);
-    }
-
-    // ── Monthly ───────────────────────────────────────────────────────────────
-
-    [Test]
-    public async Task ExecuteAsync_MonthlyCompletedLastMonth_ResetsTask()
-    {
-        var lastMonth = Today.AddMonths(-1);
-        var todo = CompletedTodo(Cadence.Monthly, completedOn: lastMonth);
-        SetupTodos(todo);
-
-        await _job.ExecuteAsync();
-
-        Assert.That(todo.Done, Is.False);
-    }
-
-    [Test]
-    public async Task ExecuteAsync_MonthlyCompletedThisMonth_DoesNotReset()
-    {
-        var startOfMonth = new DateOnly(Today.Year, Today.Month, 1);
-        var todo = CompletedTodo(Cadence.Monthly, completedOn: startOfMonth);
-        SetupTodos(todo);
-
-        await _job.ExecuteAsync();
-
-        Assert.That(todo.Done, Is.True);
-    }
-
-    // ── Quarterly ─────────────────────────────────────────────────────────────
-
-    [Test]
-    public async Task ExecuteAsync_QuarterlyCompletedLastQuarter_ResetsTask()
-    {
-        var lastQuarter = Today.AddMonths(-3);
-        var todo = CompletedTodo(Cadence.Quarterly, completedOn: lastQuarter);
-        SetupTodos(todo);
-
-        await _job.ExecuteAsync();
-
-        Assert.That(todo.Done, Is.False);
-    }
-
-    // ── Null LastCompletedOn ──────────────────────────────────────────────────
-
-    [Test]
-    public async Task ExecuteAsync_NullLastCompletedOn_DoesNotReset()
-    {
-        // Task is Done=true but LastCompletedOn was never set (pre-migration data).
+        // Legacy row: Done=true but no DueOn — the job leaves it untouched.
         var todo = Todo.Create("task", Cadence.Daily, ownerId: 1);
-        // Manually mark done without going through Complete() — simulate legacy data.
-        // We use Complete() then clear via Reopen/re-Complete to get Done=true with null date.
-        // Since we can't set Done=true with null LastCompletedOn via the public API after
-        // our change, this reflects that the reset job safely skips such tasks.
-        SetupTodos(); // repo returns empty — job has nothing to process
-
-        await _job.ExecuteAsync();
-
-        Assert.That(todo.Done, Is.False); // unchanged
-    }
-
-    // ── DueOn advancement ─────────────────────────────────────────────────────
-
-    [Test]
-    public async Task ExecuteAsync_DailyReset_AdvancesDueOnByOneDay()
-    {
-        var dueOn = Today.AddDays(1);
-        var todo = CompletedTodo(Cadence.Daily, completedOn: Today.AddDays(-1), dueOn: dueOn);
+        todo.Complete(); // DueOn stays null
         SetupTodos(todo);
 
         await _job.ExecuteAsync();
 
-        Assert.That(todo.DueOn, Is.EqualTo(dueOn.AddDays(1)));
+        Assert.That(todo.Done, Is.True); // unchanged
     }
 
+    // ── Cycle roll-forward (StartsOn := DueOn, DueOn := StartsOn + period) ──────
+
     [Test]
-    public async Task ExecuteAsync_WeeklyReset_AdvancesDueOnBySevenDays()
+    public async Task ExecuteAsync_DailyReset_RollsCycleForwardByOneDay()
     {
-        var dueOn = Today;
-        var todo = CompletedTodo(Cadence.Weekly, completedOn: Today.AddDays(-7), dueOn: dueOn);
+        var dueOn = Today.AddDays(-1);
+        var todo = CompletedTodo(Cadence.Daily, dueOn: dueOn);
         SetupTodos(todo);
 
         await _job.ExecuteAsync();
 
-        Assert.That(todo.DueOn, Is.EqualTo(dueOn.AddDays(7)));
+        Assert.Multiple(() =>
+        {
+            Assert.That(todo.StartsOn, Is.EqualTo(dueOn));
+            Assert.That(todo.DueOn, Is.EqualTo(dueOn.AddDays(1)));
+        });
     }
 
     [Test]
-    public async Task ExecuteAsync_MonthlyReset_AdvancesDueOnByOneMonth()
+    public async Task ExecuteAsync_WeeklyReset_RollsCycleForwardBySevenDays()
     {
-        var dueOn = Today;
-        var todo = CompletedTodo(Cadence.Monthly, completedOn: Today.AddMonths(-1), dueOn: dueOn);
+        var dueOn = Today.AddDays(-7);
+        var todo = CompletedTodo(Cadence.Weekly, dueOn: dueOn);
+        SetupTodos(todo);
+
+        await _job.ExecuteAsync();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(todo.StartsOn, Is.EqualTo(dueOn));
+            Assert.That(todo.DueOn, Is.EqualTo(dueOn.AddDays(7)));
+        });
+    }
+
+    [Test]
+    public async Task ExecuteAsync_MonthlyReset_RollsCycleForwardByOneMonth()
+    {
+        var dueOn = Today.AddMonths(-1);
+        var todo = CompletedTodo(Cadence.Monthly, dueOn: dueOn);
         SetupTodos(todo);
 
         await _job.ExecuteAsync();
@@ -201,14 +152,15 @@ public class TodoResetJobTests
     }
 
     [Test]
-    public async Task ExecuteAsync_NullDueOn_RemainsNull()
+    public async Task ExecuteAsync_QuarterlyReset_RollsCycleForwardByThreeMonths()
     {
-        var todo = CompletedTodo(Cadence.Daily, completedOn: Today.AddDays(-1), dueOn: null);
+        var dueOn = Today.AddMonths(-3);
+        var todo = CompletedTodo(Cadence.Quarterly, dueOn: dueOn);
         SetupTodos(todo);
 
         await _job.ExecuteAsync();
 
-        Assert.That(todo.DueOn, Is.Null);
+        Assert.That(todo.DueOn, Is.EqualTo(dueOn.AddMonths(3)));
     }
 
     // ── Subtask reset ─────────────────────────────────────────────────────────
@@ -216,7 +168,7 @@ public class TodoResetJobTests
     [Test]
     public async Task ExecuteAsync_ResetsAllSubtasks_WhenParentIsReset()
     {
-        var todo = CompletedTodo(Cadence.Daily, completedOn: Today.AddDays(-1));
+        var todo = CompletedTodo(Cadence.Daily, dueOn: Today.AddDays(-1));
         var sub1 = Subtask.Create("step 1");
         var sub2 = Subtask.Create("step 2");
         sub1.Complete();
@@ -233,7 +185,7 @@ public class TodoResetJobTests
     [Test]
     public async Task ExecuteAsync_DoesNotResetSubtasks_WhenParentIsNotReset()
     {
-        var todo = CompletedTodo(Cadence.Daily, completedOn: Today);
+        var todo = CompletedTodo(Cadence.Daily, dueOn: Today.AddDays(1));
         var sub = Subtask.Create("step");
         sub.Complete();
         todo.AddSubtask(sub);
@@ -249,8 +201,8 @@ public class TodoResetJobTests
     [Test]
     public async Task ExecuteAsync_InvalidatesOwnerCache_ForEachResetTask()
     {
-        var todo1 = CompletedTodo(Cadence.Daily, completedOn: Today.AddDays(-1), ownerId: 1);
-        var todo2 = CompletedTodo(Cadence.Weekly, completedOn: Today.AddDays(-7), ownerId: 2);
+        var todo1 = CompletedTodo(Cadence.Daily, dueOn: Today.AddDays(-1), ownerId: 1);
+        var todo2 = CompletedTodo(Cadence.Weekly, dueOn: Today.AddDays(-7), ownerId: 2);
         SetupTodos(todo1, todo2);
 
         await _job.ExecuteAsync();
@@ -263,8 +215,8 @@ public class TodoResetJobTests
     public async Task ExecuteAsync_DeduplicatesOwnerCacheInvalidation()
     {
         // Two tasks for the same owner — cache should only be invalidated once.
-        var todo1 = CompletedTodo(Cadence.Daily, completedOn: Today.AddDays(-1), ownerId: 1);
-        var todo2 = CompletedTodo(Cadence.Weekly, completedOn: Today.AddDays(-7), ownerId: 1);
+        var todo1 = CompletedTodo(Cadence.Daily, dueOn: Today.AddDays(-1), ownerId: 1);
+        var todo2 = CompletedTodo(Cadence.Weekly, dueOn: Today.AddDays(-7), ownerId: 1);
         SetupTodos(todo1, todo2);
 
         await _job.ExecuteAsync();
@@ -275,7 +227,7 @@ public class TodoResetJobTests
     [Test]
     public async Task ExecuteAsync_NoTasksReset_NoCacheInvalidation()
     {
-        var todo = CompletedTodo(Cadence.Daily, completedOn: Today);
+        var todo = CompletedTodo(Cadence.Daily, dueOn: Today.AddDays(1));
         SetupTodos(todo);
 
         await _job.ExecuteAsync();

@@ -39,15 +39,17 @@ public class TodoServiceTests
     private static Person PersonWithId(int id) =>
         Person.Create($"P{id}", "PX", "#fff", $"p{id}@x.com").WithId(id);
 
+    private static readonly DateOnly Today = DateOnly.FromDateTime(DateTime.UtcNow);
+
     private static UpdateTodoRequest UpdateRequest(
         string title = "t", Priority priority = Priority.Med,
         int? assigneeId = null, bool done = false) =>
-        new(title, priority, "", null, null, "", assigneeId, done, []);
+        new(title, priority, Today, null, "", assigneeId, done, []);
 
     [Test]
     public void CreateAsync_InvalidRequest_ThrowsValidation()
     {
-        var request = new CreateTodoRequest(Title: "", Cadence.Daily);
+        var request = new CreateTodoRequest(Title: "", Cadence.Daily, StartsOn: Today);
 
         Assert.ThrowsAsync<ValidationException>(() => _service.CreateAsync(request, ownerId: 1));
     }
@@ -56,7 +58,7 @@ public class TodoServiceTests
     public void CreateAsync_OwnerNotFound_Throws()
     {
         _persons.Setup(p => p.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync((Person?)null);
-        var request = new CreateTodoRequest("Write tests", Cadence.Daily);
+        var request = new CreateTodoRequest("Write tests", Cadence.Daily, StartsOn: Today);
 
         Assert.ThrowsAsync<DomainException>(() => _service.CreateAsync(request, ownerId: 1));
     }
@@ -65,7 +67,7 @@ public class TodoServiceTests
     public async Task CreateAsync_Valid_PersistsAndReturnsResponseWithOwner()
     {
         _persons.Setup(p => p.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(PersonWithId(1));
-        var request = new CreateTodoRequest("Write tests", Cadence.Daily);
+        var request = new CreateTodoRequest("Write tests", Cadence.Daily, StartsOn: Today);
 
         var result = await _service.CreateAsync(request, ownerId: 1);
 

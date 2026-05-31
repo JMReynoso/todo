@@ -3,20 +3,30 @@
 import { useRef, useState } from 'react';
 import { Icon } from '../atoms/Icon';
 import { useDismissable } from '../../_hooks/useDismissable';
-import { formatDate, parseLooseDate } from '../../_lib/dates';
+import { isoDate } from '../../_lib/dates';
 import { MiniCalendar } from './MiniCalendar';
 
-export interface WhenFieldProps {
+export interface StartsOnFieldProps {
+  /** ISO yyyy-mm-dd. The user-chosen anchor; DueOn is derived from it. */
   value: string;
   onChange: (next: string) => void;
 }
 
-export function WhenField({ value, onChange }: WhenFieldProps) {
+export function StartsOnField({ value, onChange }: StartsOnFieldProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
   useDismissable(open, ref, () => setOpen(false));
 
-  const parsed = parseLooseDate(value);
+  const date = value ? new Date(value + 'T00:00:00') : null;
+  const label =
+    date && !isNaN(date.getTime())
+      ? date.toLocaleDateString(undefined, {
+          weekday: 'short',
+          month: 'short',
+          day: 'numeric',
+        })
+      : '+ pick a start date';
+
   return (
     <div ref={ref} style={{ position: 'relative' }}>
       <button
@@ -40,7 +50,7 @@ export function WhenField({ value, onChange }: WhenFieldProps) {
           if (!open) e.currentTarget.style.background = 'transparent';
         }}
       >
-        <span>{value || '+ set a date'}</span>
+        <span>{label}</span>
         <Icon name="chevron" size={12} color="var(--ink-3)" />
       </button>
       {open && (
@@ -53,20 +63,19 @@ export function WhenField({ value, onChange }: WhenFieldProps) {
           }}
         >
           <MiniCalendar
-            value={parsed}
+            value={date}
             onPick={(d) => {
-              onChange(formatDate(d));
+              onChange(isoDate(d));
               setOpen(false);
             }}
+            // StartsOn is required, so "clear" falls back to today rather than empty.
             onClear={() => {
-              onChange('');
+              onChange(isoDate(new Date()));
               setOpen(false);
             }}
-            onCustom={(v) => {
-              onChange(v);
-              setOpen(false);
-            }}
-            current={value}
+            onCustom={() => {}}
+            current=""
+            hideFreeform
           />
         </div>
       )}

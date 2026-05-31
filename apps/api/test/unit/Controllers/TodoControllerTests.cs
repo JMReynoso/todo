@@ -47,10 +47,12 @@ public class TodoControllerTests
     private static Person PersonWithId(int id) =>
         Person.Create($"P{id}", "PX", "#fff", $"p{id}@x.com").WithId(id);
 
+    private static readonly DateOnly Today = DateOnly.FromDateTime(DateTime.UtcNow);
+
     private static UpdateTodoRequest UpdateRequest(
         string title = "t", Priority priority = Priority.Med,
         int? assigneeId = null, bool done = false) =>
-        new(title, priority, "", null, null, "", assigneeId, done, []);
+        new(title, priority, Today, null, "", assigneeId, done, []);
 
     private void SetUserClaim(int userId) =>
         _controller.ControllerContext = new ControllerContext
@@ -102,7 +104,7 @@ public class TodoControllerTests
         SetUserClaim(1);
         _persons.Setup(p => p.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(PersonWithId(1));
 
-        var result = await _controller.Create(new CreateTodoRequest("Write tests", Cadence.Daily), default);
+        var result = await _controller.Create(new CreateTodoRequest("Write tests", Cadence.Daily, StartsOn: Today), default);
 
         Assert.That(result.Result, Is.InstanceOf<CreatedAtActionResult>());
         Assert.That(((CreatedAtActionResult)result.Result!).ActionName, Is.EqualTo(nameof(TodoController.GetById)));

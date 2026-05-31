@@ -56,9 +56,8 @@ public class TodoService(
         var todo = Todo.Create(request.Title, request.Cadence, owner.Id);
 
         todo.SetPriority(request.Priority);
-        todo.SetDue(request.Due);
+        todo.SetStartsOn(request.StartsOn);
         todo.SetDueOn(request.DueOn);
-        todo.SetDate(request.Date);
         todo.SetNotes(request.Notes);
         todo.SetTags(request.Tags ?? []);
 
@@ -83,9 +82,8 @@ public class TodoService(
 
         todo.SetTitle(request.Title);
         todo.SetPriority(request.Priority);
-        todo.SetDue(request.Due);
+        todo.SetStartsOn(request.StartsOn);
         todo.SetDueOn(request.DueOn);
-        todo.SetDate(request.Date);
         todo.SetNotes(request.Notes);
         todo.SetTags(request.Tags ?? []);
 

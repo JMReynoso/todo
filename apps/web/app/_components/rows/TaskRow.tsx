@@ -8,7 +8,7 @@ import { Pill } from '../atoms/Pill';
 import { PriorityDot } from '../atoms/PriorityDot';
 import { useSettings } from '../../_context/SettingsCtx';
 import { useResolvedPerson } from '../../_hooks/useResolvedPeople';
-import { nextResetLabel, taskUrgency } from '../../_lib/dates';
+import { formatIso, nextResetLabel, taskUrgency } from '../../_lib/dates';
 import type { Task } from '../../_types';
 
 export interface TaskRowProps {
@@ -123,7 +123,7 @@ export function TaskRow({ task, onOpen, onToggle, hairline }: TaskRowProps) {
             resets {nextResetLabel(task.cadence)}
           </span>
         ) : (
-          task.due && (
+          formatIso(task.dueOn) && (
             <span
               style={{
                 fontFamily: 'var(--mono)',
@@ -132,7 +132,7 @@ export function TaskRow({ task, onOpen, onToggle, hairline }: TaskRowProps) {
                 letterSpacing: '0.02em',
               }}
             >
-              {task.due}
+              {formatIso(task.dueOn)}
             </span>
           )
         )}

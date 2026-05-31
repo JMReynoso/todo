@@ -27,12 +27,13 @@ export interface Task {
   title: string;
   done: boolean;
   priority: Priority;
-  /** Free-text recurrence hint, e.g. "today", "Fri 2p", "1st", "last Sun". */
-  due: string;
-  /** ISO yyyy-mm-dd deadline (optional, used by `once` tasks for hard dates). */
+  /** ISO yyyy-mm-dd anchor the user picks (calendar picker). Required. */
+  startsOn: string;
+  /**
+   * ISO yyyy-mm-dd, derived and locked: `startsOn` advanced by one cadence
+   * period (one-offs are due on their `startsOn`). Never edited directly.
+   */
   dueOn?: string;
-  /** ISO yyyy-mm-dd anchor date (used by `once` cadence). */
-  date?: string;
   tags: string[];
   subtasks: Subtask[];
   notes: string;
