@@ -402,6 +402,12 @@ export function Shell({ children }: { children: ReactNode }) {
     setOpenId(null);
     setDraft(null);
     setTasks((xs) => xs.filter((x) => x.id !== id));
+    // Persist the removal so it survives a refresh. Drafts have non-numeric
+    // uids and only exist client-side, so skip the API for those.
+    const numId = Number(id);
+    if (!isNaN(numId)) {
+      apiFetch(`/api/todos/${numId}`, { method: 'DELETE' }).catch(() => {});
+    }
   };
 
   const addSubtask = (title: string) => {
