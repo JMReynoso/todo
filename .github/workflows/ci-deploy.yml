@@ -121,7 +121,9 @@ jobs:
 
       - name: Deploy
         run: |
-          docker compose -f infra/docker-compose.prod.yml --env-file infra/.env down
+          docker compose -f infra/docker-compose.prod.yml --env-file infra/.env down --remove-orphans
+          docker ps -q --filter publish=8080 | xargs -r docker rm -f
+          docker ps -q --filter publish=3100 | xargs -r docker rm -f
           docker compose -f infra/docker-compose.prod.yml --env-file infra/.env up --build -d
 
       - name: Prune unused images
