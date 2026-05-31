@@ -1,48 +1,27 @@
 import { URGENCY_WINDOW_HOURS } from '../_data/constants';
 import type { Cadence, Task } from '../_types';
 
-/**
- * End of the cadence window for a task — when a recurring task being checked
- * off would reset to "open" again, or the hard deadline for one-offs.
- */
+/** End of the task's own due date (its `dueOn` at 23:59:59), or null. */
 export function endOfWindow(task: Task): Date | null {
-  const now = new Date();
-  if (task.cadence === 'once') {
-    if (!task.dueOn) return null;
-    const d = new Date(task.dueOn + 'T23:59:59');
-    return isNaN(d.getTime()) ? null : d;
-  }
-  if (task.cadence === 'daily') {
-    const eod = new Date(now);
-    eod.setHours(23, 59, 59, 999);
-    return eod;
-  }
-  if (task.cadence === 'weekly') {
-    const daysToSun = (7 - now.getDay()) % 7;
-    const end = new Date(now);
-    end.setDate(now.getDate() + daysToSun);
-    end.setHours(23, 59, 59, 999);
-    return end;
-  }
-  if (task.cadence === 'monthly') {
-    return new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
-  }
-  // quarterly
-  const q = Math.floor(now.getMonth() / 3);
-  return new Date(now.getFullYear(), (q + 1) * 3, 0, 23, 59, 59, 999);
+  if (!task.dueOn) return null;
+  const d = new Date(task.dueOn + 'T23:59:59');
+  return isNaN(d.getTime()) ? null : d;
 }
 
 /**
- * 0..1 urgency for in-progress tasks based on how close we are to the end of
- * the cadence window. Daily ramps from 4pm to midnight; weekly over the last
- * 60h; monthly the last 5d; quarterly the last 2w; one-offs the last 48h.
+ * 0..1 urgency for in-progress tasks based on how close *this* task is to its
+ * own due date — not the shared end of the cadence period. The red ramps over
+ * a per-cadence lead time before `dueOn`: daily over the last 8h, weekly the
+ * last 60h, monthly the last 5d, quarterly the last 2w, one-offs the last 48h.
+ * Tasks whose due date is still beyond that lead time show no tint, so a board
+ * of freshly-anchored recurring tasks no longer lights up red all at once.
  */
 export function taskUrgency(task: Task): number {
   if (task.done) return 0;
-  const end = endOfWindow(task);
-  if (!end) return 0;
-  const hoursLeft = (end.getTime() - Date.now()) / 3600000;
-  if (hoursLeft <= 0) return 1;
+  const due = endOfWindow(task);
+  if (!due) return 0;
+  const hoursLeft = (due.getTime() - Date.now()) / 3600000;
+  if (hoursLeft <= 0) return 1; // due today or overdue
   const win = URGENCY_WINDOW_HOURS[task.cadence];
   if (!win || hoursLeft >= win) return 0;
   return Math.max(0, Math.min(1, 1 - hoursLeft / win));

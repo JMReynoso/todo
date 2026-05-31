@@ -3,8 +3,12 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { useMobile } from '../../_context/MobileCtx';
 import type { Cadence, Task } from '../../_types';
+import { DayModal } from './DayModal';
 
 export type CadenceColorMap = Record<Cadence, string>;
+
+/** Days with this many tasks open a windowed view instead of the in-cell popover. */
+const WINDOW_THRESHOLD = 5;
 
 export interface DayCellProps {
   date: Date;
@@ -29,7 +33,9 @@ export function DayCell({
 }: DayCellProps) {
   const [hover, setHover] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const [windowed, setWindowed] = useState(false);
   const isMobile = useMobile();
+  const useWindow = dayTasks.length >= WINDOW_THRESHOLD;
   const popRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     if (!expanded) return;
@@ -72,6 +78,8 @@ export function DayCell({
     <div
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
+      onClick={useWindow ? () => setWindowed(true) : undefined}
+      title={useWindow ? `Open ${dayTasks.length} tasks for this day` : undefined}
       style={{
         background: isWeekend ? 'var(--bg)' : 'var(--bg-elev)',
         minHeight: isMobile ? 64 : 124,
@@ -80,6 +88,7 @@ export function DayCell({
         flexDirection: 'column',
         gap: isMobile ? 2 : 4,
         position: 'relative',
+        cursor: useWindow ? 'pointer' : 'default',
         outline: hover ? '1px solid var(--line-strong)' : '1px solid transparent',
         outlineOffset: -1,
         transition: 'outline-color 120ms ease',
@@ -153,7 +162,11 @@ export function DayCell({
       {isMobile
         ? dayTasks.length > 0 && (
             <button
-              onClick={() => setExpanded(true)}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (useWindow) setWindowed(true);
+                else setExpanded(true);
+              }}
               style={{
                 display: 'flex',
                 flexWrap: 'wrap',
@@ -196,7 +209,10 @@ export function DayCell({
         : visible.map((t) => (
             <button
               key={t.id}
-              onClick={() => onOpen(t.id)}
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpen(t.id);
+              }}
               title={t.title || 'Untitled'}
               style={chipStyle(t)}
             >
@@ -229,7 +245,7 @@ export function DayCell({
         <button
           onClick={(e) => {
             e.stopPropagation();
-            setExpanded(true);
+            setWindowed(true);
           }}
           style={{
             alignSelf: 'flex-start',
@@ -403,6 +419,18 @@ export function DayCell({
             </button>
           ))}
         </div>
+      )}
+      {windowed && (
+        <DayModal
+          date={date}
+          isToday={isToday}
+          dayTasks={dayTasks}
+          cadenceTint={cadenceTint}
+          cadenceInk={cadenceInk}
+          onOpen={onOpen}
+          onAdd={onAdd}
+          onClose={() => setWindowed(false)}
+        />
       )}
     </div>
   );
