@@ -31,6 +31,11 @@ jobs:
             arch -arm64 brew install pnpm
           fi
 
+      - name: Free disk space
+        run: |
+          dotnet nuget locals all --clear
+          docker system prune -f
+
       - name: Restore API dependencies
         run: dotnet restore apps/api/todo.slnx
 
