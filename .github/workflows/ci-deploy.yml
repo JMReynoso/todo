@@ -22,14 +22,19 @@ jobs:
       - name: Install .NET
         run: |
           if ! command -v dotnet >/dev/null 2>&1; then
-            brew install --cask dotnet-sdk
+            arch -arm64 brew install --cask dotnet-sdk
           fi
 
       - name: Install pnpm
         run: |
           if ! command -v pnpm >/dev/null 2>&1; then
-            npm install -g pnpm
+            arch -arm64 brew install pnpm
           fi
+
+      - name: Free disk space
+        run: |
+          dotnet nuget locals all --clear
+          docker system prune -f
 
       - name: Restore API dependencies
         run: dotnet restore apps/api/todo.slnx
@@ -47,6 +52,10 @@ jobs:
           /p:Threshold=65
           /p:ThresholdType=line
           /p:ThresholdStat=total
+
+      - name: Expose Docker socket for Testcontainers
+        run: |
+          echo "DOCKER_HOST=$(docker context inspect --format '{{.Endpoints.docker.Host}}')" >> $GITHUB_ENV
 
       - name: Integration tests
         run: >
