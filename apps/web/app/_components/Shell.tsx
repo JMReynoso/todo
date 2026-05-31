@@ -373,7 +373,7 @@ export function Shell({ children }: { children: ReactNode }) {
   };
   const saveDraft = async () => {
     if (!draft) return;
-    const { isDraft: _, ...draftData } = draft;
+    const { isDraft: _isDraft, ...draftData } = draft;
     try {
       const result = await apiFetch<ApiTodo>('/api/todos', {
         method: 'POST',
