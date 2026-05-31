@@ -120,6 +120,17 @@ export function Shell({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
 
+  const [tweaks, setTweak] = useTweaks(TWEAK_DEFAULTS);
+  const [tasks, setTasks] = useState<Task[]>(seed);
+  const [openId, setOpenId] = useState<string | null>(null);
+  const [draft, setDraft] = useState<Task | null>(null);
+  const [closing, setClosing] = useState(false);
+  const [query, setQuery] = useState('');
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settings, setSettings] = useState<Settings>(INITIAL_SETTINGS);
+  const [people, setPeople] = useState<Person[]>([]);
+  const isMobile = useIsMobile();
+
   useEffect(() => {
     if (mounted && !isAuthenticated && pathname !== '/login') {
       router.replace('/login');
@@ -132,17 +143,6 @@ export function Shell({ children }: { children: ReactNode }) {
       .then(data => setTasks(data.map(mapApiTodo)))
       .catch(() => {}); // keep seed data if API is unreachable
   }, [isAuthenticated]);
-
-  const [tweaks, setTweak] = useTweaks(TWEAK_DEFAULTS);
-  const [tasks, setTasks] = useState<Task[]>(seed);
-  const [openId, setOpenId] = useState<string | null>(null);
-  const [draft, setDraft] = useState<Task | null>(null);
-  const [closing, setClosing] = useState(false);
-  const [query, setQuery] = useState('');
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const [settings, setSettings] = useState<Settings>(INITIAL_SETTINGS);
-  const [people, setPeople] = useState<Person[]>([]);
-  const isMobile = useIsMobile();
 
   const settingsRef = useRef<Settings>(INITIAL_SETTINGS);
   const profileSaveRef = useRef<ReturnType<typeof setTimeout> | null>(null);

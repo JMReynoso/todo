@@ -21,24 +21,23 @@ interface AuthContextValue extends AuthState {
 const AuthCtx = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [auth, setAuth] = useState<AuthState>({
-    token: null,
-    personId: null,
-    name: null,
-    email: null,
-  });
-  const [ready, setReady] = useState(false);
-
-  useEffect(() => {
+  const [auth, setAuth] = useState<AuthState>(() => {
+    if (typeof window === 'undefined') {
+      return { token: null, personId: null, name: null, email: null };
+    }
     const stored = localStorage.getItem(TOKEN_KEY);
     if (stored) {
       try {
-        const parsed = JSON.parse(stored) as AuthState;
-        setAuth(parsed);
+        return JSON.parse(stored) as AuthState;
       } catch {
         localStorage.removeItem(TOKEN_KEY);
       }
     }
+    return { token: null, personId: null, name: null, email: null };
+  });
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
     setReady(true);
   }, []);
 

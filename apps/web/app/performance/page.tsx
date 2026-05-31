@@ -20,9 +20,6 @@ export default function PerformanceRoute() {
   const { scoring } = useSettings();
   const { personId } = useAuth();
   const isMobile = useMobile();
-  const [phase, setPhase] = useState<Phase>("calculatingScore");
-  const [score, setScore] = useState(0);
-
   const counts = (t: Task): boolean => {
     if (t.cadence === "once") return scoring.includeOnce;
     if (t.cadence === "daily") return scoring.includeDaily;
@@ -40,15 +37,14 @@ export default function PerformanceRoute() {
   const totalToday = todayTasks.length;
   const localScore = totalToday === 0 ? 0 : Math.round((doneToday / totalToday) * 100);
 
+  const [phase, setPhase] = useState<Phase>(personId ? "calculatingScore" : "score");
+  const [score, setScore] = useState(personId ? 0 : localScore);
+
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const history = useMemo(() => buildHistory(tasks), []);
 
   useEffect(() => {
-    if (!personId) {
-      setScore(localScore);
-      setPhase("score");
-      return;
-    }
+    if (!personId) return;
     apiFetch<ApiScore>(`/api/scoring/${personId}`)
       .then((data) => {
         setScore(data.score);
