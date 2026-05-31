@@ -36,6 +36,7 @@ public class PersonService(
         await createValidator.ValidateAndThrowAsync(request, ct);
 
         var person = Person.Create(request.Name, request.Initials, request.Color, request.Email, request.PhotoUrl);
+        person.SetPasswordHash(BCrypt.Net.BCrypt.HashPassword(request.Password));
         await persons.AddAsync(person, ct);
         await persons.SaveChangesAsync(ct);
         return person.ToResponse();

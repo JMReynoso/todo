@@ -11,5 +11,6 @@ public class CreatePersonRequestValidator : AbstractValidator<CreatePersonReques
         RuleFor(person => person.Initials).NotEmpty().MaximumLength(3);
         RuleFor(person => person.Color).NotEmpty();
         RuleFor(person => person.Email).NotEmpty().EmailAddress();
+        RuleFor(person => person.Password).NotEmpty().MinimumLength(8);
     }
 }
