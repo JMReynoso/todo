@@ -3,8 +3,7 @@
 import { useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../_context/AuthCtx';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5091';
+import { API_URL } from '../_lib/apiFetch';
 
 export default function LoginPage() {
   const { login } = useAuth();
