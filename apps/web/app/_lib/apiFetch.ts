@@ -1,4 +1,8 @@
-export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5091';
+export const API_URL =
+  process.env.NEXT_PUBLIC_API_URL ??
+  (typeof window !== 'undefined'
+    ? `${window.location.protocol}//${window.location.hostname}:5091`
+    : 'http://localhost:5091');
 
 export async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   const stored = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
