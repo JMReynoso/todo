@@ -53,6 +53,10 @@ jobs:
           /p:ThresholdType=line
           /p:ThresholdStat=total
 
+      - name: Expose Docker socket for Testcontainers
+        run: |
+          echo "DOCKER_HOST=$(docker context inspect --format '{{.Endpoints.docker.Host}}')" >> $GITHUB_ENV
+
       - name: Integration tests
         run: >
           dotnet test apps/api/test/integration/Api.IntegrationTests.csproj
