@@ -36,6 +36,7 @@ export function TopBar({
   const isMobile = useMobile();
   const pathname = usePathname();
   const onPerformance = pathname === '/performance';
+  const onLogin = pathname === '/login';
   const now = new Date();
   const day = now.toLocaleDateString(undefined, { weekday: 'long' });
   const date = now.toLocaleDateString(undefined, { month: 'long', day: 'numeric' });
@@ -68,7 +69,7 @@ export function TopBar({
         >
           todo<span style={{ color: 'var(--accent)' }}>.</span>
         </span>
-        {!isMobile && (
+        {!isMobile && !onLogin && (
           <span
             style={{
               fontFamily: 'var(--mono)',
@@ -82,6 +83,8 @@ export function TopBar({
           </span>
         )}
       </div>
+      {!onLogin && (
+      <>
       <div style={{ flex: 1 }} />
       {onPerformance ? (
         <Link
@@ -303,6 +306,8 @@ export function TopBar({
       >
         <Icon name="gear" size={15} stroke={1.5} />
       </button>
+      </>
+      )}
     </header>
   );
 }
