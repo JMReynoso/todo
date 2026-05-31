@@ -6,6 +6,7 @@ COPY api.csproj ./
 COPY src/Domain/Domain.csproj src/Domain/
 COPY src/Application/Application.csproj src/Application/
 COPY src/Infrastructure/Infrastructure.csproj src/Infrastructure/
+COPY src/Controllers/Controllers.csproj src/Controllers/
 RUN dotnet restore
 
 # Copy remaining source and publish
