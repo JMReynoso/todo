@@ -18,10 +18,10 @@ services:
       context: ../apps/api
       dockerfile: Dockerfile.prod
     ports:
-      - "8080:8080"
+      - "5091:5091"
     environment:
       ASPNETCORE_ENVIRONMENT: Production
-      ASPNETCORE_URLS: http://+:8080
+      ASPNETCORE_URLS: http://+:5091
       ConnectionStrings__Postgres: "Host=postgres;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}"
       ConnectionStrings__Redis: "redis:6379,password=${REDIS_PASSWORD}"
       # Consumed only by `dotnet api.dll --seed`; ignored on normal boot.
