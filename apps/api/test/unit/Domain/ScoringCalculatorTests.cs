@@ -148,14 +148,17 @@ public class ScoringCalculatorTests
     [Test]
     public void Compute_LongestEnabledCadenceDeterminesWindow()
     {
-        // Monthly is enabled: window = this month. A daily task completed yesterday
-        // is still within the monthly window and should count.
+        // Monthly is enabled: window = this month. A daily task completed earlier
+        // this month is still within the monthly window and should count — whereas
+        // a daily-only window (just today) would exclude it. Anchored on the 1st so
+        // the date never slips into the previous month when the run lands on the 1st.
         var settings = ScoringSettings.Create(
             includeDaily: true, includeWeekly: false, includeMonthly: true,
             includeQuarterly: false, includeOnce: false, streakThreshold: 3);
 
-        var yesterday = DateOnly.FromDateTime(DateTime.UtcNow).AddDays(-1);
-        var todo = DoneTodo(Cadence.Daily, completedOn: yesterday);
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var earlierThisMonth = new DateOnly(today.Year, today.Month, 1);
+        var todo = DoneTodo(Cadence.Daily, completedOn: earlierThisMonth);
 
         Assert.That(ScoringCalculator.Compute(settings, [todo]), Is.EqualTo(100));
     }

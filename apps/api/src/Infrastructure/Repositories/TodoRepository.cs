@@ -28,6 +28,11 @@ public class TodoRepository(AppDbContext db) : ITodoRepository
             .Where(t => t.Done && t.Cadence != Cadence.Once)
             .ToListAsync(ct);
 
+    public async Task<IReadOnlyList<Todo>> GetIncompleteOnceAsync(CancellationToken ct = default) =>
+        await db.Todos
+            .Where(t => !t.Done && t.Cadence == Cadence.Once)
+            .ToListAsync(ct);
+
     public async Task AddAsync(Todo todo, CancellationToken ct = default) =>
         await db.Todos.AddAsync(todo, ct);
 

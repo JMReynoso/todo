@@ -128,6 +128,39 @@ public class TodoRepositoryIntegrationTests : DatabaseIntegrationTestBase
     }
 
     [Test]
+    public async Task GetIncompleteOnce_returns_only_open_once_tasks()
+    {
+        var ownerId = await SeedPersonAsync("Owner", "owner@x.com");
+
+        await using (var db = IntegrationFixture.NewDbContext())
+        {
+            var repo = new TodoRepository(db);
+
+            var openOnce = Todo.Create("open one-off", Cadence.Once, ownerId);
+
+            var doneOnce = Todo.Create("done one-off", Cadence.Once, ownerId);
+            doneOnce.Complete();
+
+            var openDaily = Todo.Create("open daily", Cadence.Daily, ownerId);
+
+            await repo.AddAsync(openOnce);
+            await repo.AddAsync(doneOnce);
+            await repo.AddAsync(openDaily);
+            await repo.SaveChangesAsync();
+        }
+
+        await using (var db = IntegrationFixture.NewDbContext())
+        {
+            var open = await new TodoRepository(db).GetIncompleteOnceAsync();
+            Assert.Multiple(() =>
+            {
+                Assert.That(open, Has.Count.EqualTo(1));
+                Assert.That(open[0].Title, Is.EqualTo("open one-off"));
+            });
+        }
+    }
+
+    [Test]
     public async Task Remove_deletes_the_todo()
     {
         var ownerId = await SeedPersonAsync("Owner", "owner@x.com");

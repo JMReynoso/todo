@@ -103,6 +103,19 @@ public class Todo : Entity
     }
 
     /// <summary>
+    /// Pushes an incomplete one-off (<see cref="Cadence.Once"/>) task onto
+    /// <paramref name="date"/> so it stays current after its scheduled day passes
+    /// without being completed. Sets both <see cref="StartsOn"/> and
+    /// <see cref="DueOn"/>, since a Once task is due on its anchor. The recurring
+    /// counterpart is <see cref="AdvanceCycle"/>.
+    /// </summary>
+    public void RescheduleTo(DateOnly date)
+    {
+        StartsOn = date;
+        DueOn = date;
+    }
+
+    /// <summary>
     /// Adds one <see cref="Cadence"/> period to <paramref name="date"/>. Kept in
     /// sync with the client's period math (apps/web/app/_lib/dates.ts).
     /// </summary>
