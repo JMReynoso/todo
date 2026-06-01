@@ -44,6 +44,11 @@ ScaffoldingReadMe.txt
 *~
 CodeCoverage/
 
+# Coverlet coverage output
+coverage*.xml
+coverage*.json
+coverage*.info
+
 # MSBuild Binary and Structured Log
 *.binlog
 

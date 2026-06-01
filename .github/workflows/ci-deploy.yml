@@ -49,8 +49,8 @@ jobs:
           /p:CollectCoverage=true
           /p:CoverletOutputFormat=cobertura
           /p:CoverletOutput=./coverage.cobertura.xml
-          /p:Threshold=65
-          /p:ThresholdType=line
+          /p:Threshold=75
+          /p:ThresholdType=line%2cbranch%2cmethod
           /p:ThresholdStat=total
 
       - name: Expose Docker socket for Testcontainers
