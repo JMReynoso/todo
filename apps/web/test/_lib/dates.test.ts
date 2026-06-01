@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Task } from '../_types';
+import type { Task } from '@/app/_types';
 import {
   cadencePeriodLabel,
   endOfWindow,
@@ -10,7 +10,7 @@ import {
   nextResetLabel,
   taskUrgency,
   tasksOnDate,
-} from './dates';
+} from '@/app/_lib/dates';
 
 function makeTask(overrides: Partial<Task> = {}): Task {
   return {
