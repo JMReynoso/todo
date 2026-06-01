@@ -4,6 +4,7 @@ import { useEffect, useLayoutEffect, useState } from 'react';
 import { Icon } from '../atoms/Icon';
 import { useAuth } from '../../_context/AuthCtx';
 import { useMobile } from '../../_context/MobileCtx';
+import { IS_DEMO } from '../../_lib/demo/config';
 import modal from '../modal.module.css';
 import type {
   ProfileSettings as ProfileSettingsValue,
@@ -222,7 +223,7 @@ export function SettingsModal({ settings, patch, onClose, onUploadPhoto }: Setti
               />
             )}
 
-            {isAuthenticated && (
+            {isAuthenticated && !IS_DEMO && (
               <div
                 style={{
                   marginTop: 28,

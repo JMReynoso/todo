@@ -2,8 +2,17 @@
 
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import { API_URL } from '../_lib/apiFetch';
+import { DEMO_PERSON, IS_DEMO } from '../_lib/demo/config';
 
 const TOKEN_KEY = 'auth_token';
+
+// Demo builds have no auth: every visitor is auto-signed-in as the demo user.
+const DEMO_AUTH: AuthState = {
+  token: 'demo',
+  personId: DEMO_PERSON.id,
+  name: DEMO_PERSON.name,
+  email: DEMO_PERSON.email,
+};
 
 interface AuthState {
   token: string | null;
@@ -22,6 +31,7 @@ const AuthCtx = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [auth, setAuth] = useState<AuthState>(() => {
+    if (IS_DEMO) return DEMO_AUTH;
     if (typeof window === 'undefined') {
       return { token: null, personId: null, name: null, email: null };
     }
@@ -49,6 +59,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = () => {
+    // Demo builds have no auth lifecycle — there's nothing to sign out of.
+    if (IS_DEMO) return;
     // Fire-and-forget the server announce — local state must clear even if
     // the API is down. apiFetch can't be used here because the server replies
     // 204 (no body) which apiFetch tries to .json().
