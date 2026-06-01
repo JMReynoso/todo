@@ -70,6 +70,10 @@ jobs:
         working-directory: apps/web
         run: pnpm lint
 
+      - name: Unit tests web
+        working-directory: apps/web
+        run: pnpm test:coverage
+
       - name: Build web
         working-directory: apps/web
         run: pnpm build
