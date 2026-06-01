@@ -188,4 +188,128 @@ public class TodoRepositoryIntegrationTests : DatabaseIntegrationTestBase
             Assert.That(await new TodoRepository(db).GetByIdAsync(todoId), Is.Null);
         }
     }
+
+    [Test]
+    public async Task Remove_nonexistent_returns_false()
+    {
+        await using var db = IntegrationFixture.NewDbContext();
+        var repo = new TodoRepository(db);
+
+        Assert.That(await repo.RemoveAsync(999_999), Is.False);
+    }
+
+    [Test]
+    public async Task GetById_orders_subtasks_by_id()
+    {
+        var ownerId = await SeedPersonAsync("Owner", "owner@x.com");
+
+        int todoId;
+        await using (var db = IntegrationFixture.NewDbContext())
+        {
+            var repo = new TodoRepository(db);
+            var todo = Todo.Create("groceries", Cadence.Weekly, ownerId);
+            todo.AddSubtask(Subtask.Create("first"));
+            todo.AddSubtask(Subtask.Create("second"));
+            todo.AddSubtask(Subtask.Create("third"));
+            await repo.AddAsync(todo);
+            await repo.SaveChangesAsync();
+            todoId = todo.Id;
+        }
+
+        await using (var db = IntegrationFixture.NewDbContext())
+        {
+            var loaded = await new TodoRepository(db).GetByIdAsync(todoId);
+            Assert.That(loaded, Is.Not.Null);
+            Assert.That(
+                loaded!.Subtasks.Select(s => s.Title),
+                Is.EqualTo(new[] { "first", "second", "third" }).AsCollection);
+        }
+    }
+
+    [Test]
+    public async Task GetAllForUser_returns_owned_and_assigned_but_not_unrelated()
+    {
+        var ownerId = await SeedPersonAsync("Owner", "owner@x.com");
+        var otherId = await SeedPersonAsync("Other", "other@x.com");
+
+        await using (var db = IntegrationFixture.NewDbContext())
+        {
+            var repo = new TodoRepository(db);
+
+            var owned = Todo.Create("owned", Cadence.Daily, ownerId);
+
+            var assigned = Todo.Create("assigned", Cadence.Daily, otherId);
+            assigned.AssignTo(ownerId);
+
+            var unrelated = Todo.Create("unrelated", Cadence.Daily, otherId);
+
+            await repo.AddAsync(owned);
+            await repo.AddAsync(assigned);
+            await repo.AddAsync(unrelated);
+            await repo.SaveChangesAsync();
+        }
+
+        await using (var db = IntegrationFixture.NewDbContext())
+        {
+            var mine = await new TodoRepository(db).GetAllForUserAsync(ownerId);
+            Assert.That(
+                mine.Select(t => t.Title),
+                Is.EquivalentTo(new[] { "owned", "assigned" }));
+        }
+    }
+
+    [Test]
+    public async Task GetDoneRecurring_returns_only_completed_recurring_tasks()
+    {
+        var ownerId = await SeedPersonAsync("Owner", "owner@x.com");
+
+        await using (var db = IntegrationFixture.NewDbContext())
+        {
+            var repo = new TodoRepository(db);
+
+            var doneWeekly = Todo.Create("done weekly", Cadence.Weekly, ownerId);
+            doneWeekly.Complete();
+
+            var openWeekly = Todo.Create("open weekly", Cadence.Weekly, ownerId);
+
+            var doneOnce = Todo.Create("done once", Cadence.Once, ownerId);
+            doneOnce.Complete();
+
+            await repo.AddAsync(doneWeekly);
+            await repo.AddAsync(openWeekly);
+            await repo.AddAsync(doneOnce);
+            await repo.SaveChangesAsync();
+        }
+
+        await using (var db = IntegrationFixture.NewDbContext())
+        {
+            var done = await new TodoRepository(db).GetDoneRecurringAsync();
+            Assert.Multiple(() =>
+            {
+                Assert.That(done, Has.Count.EqualTo(1));
+                Assert.That(done[0].Title, Is.EqualTo("done weekly"));
+            });
+        }
+    }
+
+    [Test]
+    public async Task GetAll_returns_every_todo_across_users()
+    {
+        var ownerId = await SeedPersonAsync("Owner", "owner@x.com");
+        var otherId = await SeedPersonAsync("Other", "other@x.com");
+
+        await using (var db = IntegrationFixture.NewDbContext())
+        {
+            var repo = new TodoRepository(db);
+            await repo.AddAsync(Todo.Create("a", Cadence.Daily, ownerId));
+            await repo.AddAsync(Todo.Create("b", Cadence.Daily, otherId));
+            await repo.SaveChangesAsync();
+        }
+
+        await using (var db = IntegrationFixture.NewDbContext())
+        {
+            var all = await new TodoRepository(db).GetAllAsync();
+            Assert.That(all.Select(t => t.Title), Is.EquivalentTo(new[] { "a", "b" }));
+        }
+    }
 }

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { apiFetch } from './apiFetch';
+import { apiFetch } from '@/app/_lib/apiFetch';
 
 function mockResponse(opts: {
   ok: boolean;

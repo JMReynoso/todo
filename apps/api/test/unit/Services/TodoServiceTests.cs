@@ -208,4 +208,136 @@ public class TodoServiceTests
         Assert.That(result!.Subtasks, Has.Count.EqualTo(1));
         Assert.That(result.Subtasks[0].Title, Is.EqualTo("sub"));
     }
+
+    [Test]
+    public void AddSubtaskAsync_InvalidRequest_ThrowsValidation()
+    {
+        Assert.ThrowsAsync<ValidationException>(
+            () => _service.AddSubtaskAsync(5, new CreateSubtaskRequest("")));
+    }
+
+    [Test]
+    public async Task CreateAsync_WithSubtasksTagsAndAssignee_PersistsAllAndSkipsBlankSubtasks()
+    {
+        _persons.Setup(p => p.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(PersonWithId(1));
+        _persons.Setup(p => p.GetByIdAsync(2, It.IsAny<CancellationToken>())).ReturnsAsync(PersonWithId(2));
+        var request = new CreateTodoRequest(
+            "Plan trip", Cadence.Weekly, StartsOn: Today,
+            Priority: Priority.High, Notes: "n", Tags: ["travel", "fun"],
+            Subtasks: ["Book flights", "  ", ""], AssigneeId: 2);
+
+        var result = await _service.CreateAsync(request, ownerId: 1);
+
+        Assert.Multiple(() =>
+        {
+            // Blank/whitespace subtask titles are filtered out.
+            Assert.That(result.Subtasks, Has.Count.EqualTo(1));
+            Assert.That(result.Subtasks[0].Title, Is.EqualTo("Book flights"));
+            Assert.That(result.Tags, Is.EquivalentTo(new[] { "travel", "fun" }));
+            Assert.That(result.Assignee!.Id, Is.EqualTo(2));
+        });
+    }
+
+    [Test]
+    public async Task UpdateAsync_WhenDoneChanges_InvalidatesScoreCache()
+    {
+        var todo = Todo.Create("task", Cadence.Daily, ownerId: 1).WithId(5);
+        _todos.Setup(t => t.GetByIdAsync(5, It.IsAny<CancellationToken>())).ReturnsAsync(todo);
+        _persons.Setup(p => p.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(PersonWithId(1));
+
+        await _service.UpdateAsync(5, UpdateRequest(done: true));
+
+        _scoreCache.Verify(c => c.InvalidateAsync(1, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Test]
+    public async Task UpdateAsync_WhenDoneUnchanged_DoesNotInvalidateScoreCache()
+    {
+        var todo = Todo.Create("task", Cadence.Daily, ownerId: 1).WithId(5); // starts not done
+        _todos.Setup(t => t.GetByIdAsync(5, It.IsAny<CancellationToken>())).ReturnsAsync(todo);
+        _persons.Setup(p => p.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(PersonWithId(1));
+
+        await _service.UpdateAsync(5, UpdateRequest(done: false));
+
+        _scoreCache.Verify(c => c.InvalidateAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Test]
+    public async Task ToggleSubtaskAsync_TodoNotFound_ReturnsNull()
+    {
+        _todos.Setup(t => t.GetByIdAsync(7, It.IsAny<CancellationToken>())).ReturnsAsync((Todo?)null);
+
+        Assert.That(await _service.ToggleSubtaskAsync(7, subId: 1, done: true), Is.Null);
+    }
+
+    [Test]
+    public async Task ToggleSubtaskAsync_SubtaskNotFound_ReturnsNull()
+    {
+        var todo = Todo.Create("task", Cadence.Daily, ownerId: 1).WithId(5);
+        _todos.Setup(t => t.GetByIdAsync(5, It.IsAny<CancellationToken>())).ReturnsAsync(todo);
+
+        Assert.That(await _service.ToggleSubtaskAsync(5, subId: 99, done: true), Is.Null);
+    }
+
+    [Test]
+    public async Task ToggleSubtaskAsync_Done_CompletesSubtask()
+    {
+        var todo = Todo.Create("task", Cadence.Daily, ownerId: 1).WithId(5);
+        todo.AddSubtask(Subtask.Create("sub").WithId(10));
+        _todos.Setup(t => t.GetByIdAsync(5, It.IsAny<CancellationToken>())).ReturnsAsync(todo);
+        _persons.Setup(p => p.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(PersonWithId(1));
+
+        var result = await _service.ToggleSubtaskAsync(5, subId: 10, done: true);
+
+        Assert.That(result, Is.Not.Null);
+        Assert.That(result!.Subtasks[0].Done, Is.True);
+        _todos.Verify(t => t.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Test]
+    public async Task ToggleSubtaskAsync_NotDone_ReopensSubtask()
+    {
+        var sub = Subtask.Create("sub").WithId(10);
+        sub.Complete();
+        var todo = Todo.Create("task", Cadence.Daily, ownerId: 1).WithId(5);
+        todo.AddSubtask(sub);
+        _todos.Setup(t => t.GetByIdAsync(5, It.IsAny<CancellationToken>())).ReturnsAsync(todo);
+        _persons.Setup(p => p.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(PersonWithId(1));
+
+        var result = await _service.ToggleSubtaskAsync(5, subId: 10, done: false);
+
+        Assert.That(result!.Subtasks[0].Done, Is.False);
+    }
+
+    [Test]
+    public async Task RemoveSubtaskAsync_TodoNotFound_ReturnsNull()
+    {
+        _todos.Setup(t => t.GetByIdAsync(7, It.IsAny<CancellationToken>())).ReturnsAsync((Todo?)null);
+
+        Assert.That(await _service.RemoveSubtaskAsync(7, subId: 1), Is.Null);
+    }
+
+    [Test]
+    public async Task RemoveSubtaskAsync_SubtaskNotFound_ReturnsNull()
+    {
+        var todo = Todo.Create("task", Cadence.Daily, ownerId: 1).WithId(5);
+        _todos.Setup(t => t.GetByIdAsync(5, It.IsAny<CancellationToken>())).ReturnsAsync(todo);
+
+        Assert.That(await _service.RemoveSubtaskAsync(5, subId: 99), Is.Null);
+    }
+
+    [Test]
+    public async Task RemoveSubtaskAsync_Found_RemovesSubtask()
+    {
+        var todo = Todo.Create("task", Cadence.Daily, ownerId: 1).WithId(5);
+        todo.AddSubtask(Subtask.Create("sub").WithId(10));
+        _todos.Setup(t => t.GetByIdAsync(5, It.IsAny<CancellationToken>())).ReturnsAsync(todo);
+        _persons.Setup(p => p.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(PersonWithId(1));
+
+        var result = await _service.RemoveSubtaskAsync(5, subId: 10);
+
+        Assert.That(result, Is.Not.Null);
+        Assert.That(result!.Subtasks, Is.Empty);
+        _todos.Verify(t => t.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
 }

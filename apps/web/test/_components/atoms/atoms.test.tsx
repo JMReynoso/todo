@@ -1,13 +1,13 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import type { IconName, Person } from '../../_types';
-import { Avatar } from './Avatar';
-import { Check } from './Check';
-import { Icon } from './Icon';
-import { Pill } from './Pill';
-import { PriorityDot } from './PriorityDot';
-import { Progress } from './Progress';
-import { Toggle } from './Toggle';
+import type { IconName, Person } from '@/app/_types';
+import { Avatar } from '@/app/_components/atoms/Avatar';
+import { Check } from '@/app/_components/atoms/Check';
+import { Icon } from '@/app/_components/atoms/Icon';
+import { Pill } from '@/app/_components/atoms/Pill';
+import { PriorityDot } from '@/app/_components/atoms/PriorityDot';
+import { Progress } from '@/app/_components/atoms/Progress';
+import { Toggle } from '@/app/_components/atoms/Toggle';
 
 const person: Person = {
   id: 1,

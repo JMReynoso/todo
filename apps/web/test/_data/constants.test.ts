@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ACCENTS, CADENCES, URGENCY_WINDOW_HOURS, WEEKDAYS } from './constants';
+import { ACCENTS, CADENCES, URGENCY_WINDOW_HOURS, WEEKDAYS } from '@/app/_data/constants';
 
 describe('constants', () => {
   it('defines an urgency window for every cadence', () => {

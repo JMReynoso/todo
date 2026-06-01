@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { uid } from './uid';
+import { uid } from '@/app/_lib/uid';
 
 describe('uid', () => {
   it('returns a non-empty base-36 string', () => {

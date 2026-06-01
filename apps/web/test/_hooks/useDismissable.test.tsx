@@ -1,7 +1,7 @@
 import { fireEvent, render } from '@testing-library/react';
 import { useRef } from 'react';
 import { describe, expect, it, vi } from 'vitest';
-import { useDismissable } from './useDismissable';
+import { useDismissable } from '@/app/_hooks/useDismissable';
 
 function Harness({ open, onClose }: { open: boolean; onClose: () => void }) {
   const ref = useRef<HTMLDivElement>(null);

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { Task } from '../_types';
-import { buildHistory } from './history';
+import type { Task } from '@/app/_types';
+import { buildHistory } from '@/app/_lib/history';
 
 function makeTask(overrides: Partial<Task> = {}): Task {
   return {

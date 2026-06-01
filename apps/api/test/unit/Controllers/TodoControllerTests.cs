@@ -147,4 +147,68 @@ public class TodoControllerTests
 
         Assert.That(await _controller.Remove(6, default), Is.InstanceOf<NotFoundResult>());
     }
+
+    [Test]
+    public async Task AddSubtask_NotFound_ReturnsNotFound()
+    {
+        _todos.Setup(t => t.GetByIdAsync(7, It.IsAny<CancellationToken>())).ReturnsAsync((Todo?)null);
+
+        var result = await _controller.AddSubtask(7, new CreateSubtaskRequest("sub"), default);
+
+        Assert.That(result.Result, Is.InstanceOf<NotFoundResult>());
+    }
+
+    [Test]
+    public async Task AddSubtask_Found_ReturnsOk()
+    {
+        var todo = Todo.Create("task", Cadence.Daily, ownerId: 1).WithId(5);
+        _todos.Setup(t => t.GetByIdAsync(5, It.IsAny<CancellationToken>())).ReturnsAsync(todo);
+        _persons.Setup(p => p.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(PersonWithId(1));
+
+        var result = await _controller.AddSubtask(5, new CreateSubtaskRequest("sub"), default);
+
+        Assert.That(result.Result, Is.InstanceOf<OkObjectResult>());
+    }
+
+    [Test]
+    public async Task ToggleSubtask_NotFound_ReturnsNotFound()
+    {
+        _todos.Setup(t => t.GetByIdAsync(7, It.IsAny<CancellationToken>())).ReturnsAsync((Todo?)null);
+
+        var result = await _controller.ToggleSubtask(7, subId: 1, new ToggleSubtaskRequest(true), default);
+
+        Assert.That(result.Result, Is.InstanceOf<NotFoundResult>());
+    }
+
+    [Test]
+    public async Task ToggleSubtask_Found_ReturnsOk()
+    {
+        var todo = Todo.Create("task", Cadence.Daily, ownerId: 1).WithId(5);
+        todo.AddSubtask(Subtask.Create("sub").WithId(10));
+        _todos.Setup(t => t.GetByIdAsync(5, It.IsAny<CancellationToken>())).ReturnsAsync(todo);
+        _persons.Setup(p => p.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(PersonWithId(1));
+
+        var result = await _controller.ToggleSubtask(5, subId: 10, new ToggleSubtaskRequest(true), default);
+
+        Assert.That(result.Result, Is.InstanceOf<OkObjectResult>());
+    }
+
+    [Test]
+    public async Task RemoveSubtask_NotFound_ReturnsNotFound()
+    {
+        _todos.Setup(t => t.GetByIdAsync(7, It.IsAny<CancellationToken>())).ReturnsAsync((Todo?)null);
+
+        Assert.That(await _controller.RemoveSubtask(7, subId: 1, default), Is.InstanceOf<NotFoundResult>());
+    }
+
+    [Test]
+    public async Task RemoveSubtask_Found_ReturnsNoContent()
+    {
+        var todo = Todo.Create("task", Cadence.Daily, ownerId: 1).WithId(5);
+        todo.AddSubtask(Subtask.Create("sub").WithId(10));
+        _todos.Setup(t => t.GetByIdAsync(5, It.IsAny<CancellationToken>())).ReturnsAsync(todo);
+        _persons.Setup(p => p.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(PersonWithId(1));
+
+        Assert.That(await _controller.RemoveSubtask(5, subId: 10, default), Is.InstanceOf<NoContentResult>());
+    }
 }
