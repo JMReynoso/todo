@@ -24,6 +24,7 @@ export default defineConfig({
       include: [
         'app/_lib/**/*.ts',
         'app/_data/constants.ts',
+        'app/_data/seed.ts',
         'app/_hooks/useIsMobile.ts',
         'app/_hooks/useDismissable.ts',
         'app/_components/atoms/**/*.tsx',

@@ -18,8 +18,11 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Build-time public env vars (prefix NEXT_PUBLIC_) can be passed here via
-# --build-arg or docker-compose build.args if needed in the future.
+# Build-time public env vars (prefix NEXT_PUBLIC_) are baked into the client
+# bundle here. NEXT_PUBLIC_DEMO=1 produces the backend-free demo build (see
+# app/_lib/demo); unset/0 produces the normal production build.
+ARG NEXT_PUBLIC_DEMO
+ENV NEXT_PUBLIC_DEMO=$NEXT_PUBLIC_DEMO
 ENV NEXT_TELEMETRY_DISABLED=1
 
 RUN pnpm build

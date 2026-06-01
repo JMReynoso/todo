@@ -20,6 +20,27 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Demo mode
+
+Setting the build-time flag `NEXT_PUBLIC_DEMO=1` produces a **frontend-only
+demo build** that runs entirely in the browser — no API, database, or auth:
+
+- `apiFetch` is served by an in-browser mock backed by `localStorage` and
+  seeded from `app/_data/seed.ts` (see `app/_lib/demo/`). Edits persist per
+  visitor and reset when they clear storage.
+- Auth is bypassed: every visitor is auto-signed-in as a demo user, and the
+  `/login` route redirects into the app.
+
+Run it locally:
+
+```bash
+NEXT_PUBLIC_DEMO=1 pnpm build && NEXT_PUBLIC_DEMO=1 pnpm start
+```
+
+The demo deploys as the `web-demo` service in `infra/docker-compose.prod.yml`
+(port 3101), built from the same source as production so it tracks every
+change merged to `main`.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:

@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../_context/AuthCtx';
 import { API_URL } from '../_lib/apiFetch';
+import { IS_DEMO } from '../_lib/demo/config';
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -12,6 +13,11 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // The demo has no login — anyone landing here is sent straight into the app.
+  useEffect(() => {
+    if (IS_DEMO) router.replace('/');
+  }, [router]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -45,6 +51,8 @@ export default function LoginPage() {
       setLoading(false);
     }
   };
+
+  if (IS_DEMO) return null;
 
   return (
     <div

@@ -13,6 +13,19 @@ services:
     depends_on:
       - api
 
+  # Frontend-only public demo, built from the same source with the demo flag.
+  # Runs entirely in the browser against an in-browser mock (see app/_lib/demo)
+  # — no API, database, or auth — so it has no service dependencies.
+  web-demo:
+    build:
+      context: ../apps/web
+      dockerfile: Dockerfile.prod
+      args:
+        NEXT_PUBLIC_DEMO: "1"
+    ports:
+      - "3101:3000"
+    restart: unless-stopped
+
   api:
     build:
       context: ../apps/api
