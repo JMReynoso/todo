@@ -52,6 +52,11 @@ try
     builder.Services.AddControllers()
         .AddJsonOptions(o =>
             o.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter()));
+
+    // Map anticipated exceptions (validation, domain rules, bad uploads) to
+    // 400 ProblemDetails instead of leaking 500s. See GlobalExceptionHandler.
+    builder.Services.AddProblemDetails();
+    builder.Services.AddExceptionHandler<api.GlobalExceptionHandler>();
     builder.Services.AddApplication();
     builder.Services.AddInfrastructure(builder.Configuration);
 
@@ -91,6 +96,10 @@ try
         if (app.Environment.IsDevelopment())
             await Seeder.SeedAsync(db);
     }
+
+    // Must come first so it wraps the rest of the pipeline. Maps known
+    // exceptions to 400s; everything else returns the default 500.
+    app.UseExceptionHandler();
 
     app.UseSerilogRequestLogging();
 

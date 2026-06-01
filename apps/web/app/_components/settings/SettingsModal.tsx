@@ -18,7 +18,7 @@ export interface SettingsModalProps {
   settings: Settings;
   patch: <S extends SettingsSection>(section: S, patch: Partial<Settings[S]>) => void;
   onClose: () => void;
-  onUploadPhoto: (file: File) => void;
+  onUploadPhoto: (file: File) => Promise<void>;
 }
 
 type SettingsTab = 'profile' | 'scoring';

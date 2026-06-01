@@ -1,3 +1,4 @@
+using api.Domain.Exceptions;
 using api.Domain.Interfaces;
 using Microsoft.Extensions.Options;
 using SixLabors.ImageSharp;
@@ -25,23 +26,38 @@ public class LocalPhotoStorage(IOptions<PhotoStorageOptions> options) : IPhotoSt
         var dir = Path.Combine(_root, SubFolder);
         Directory.CreateDirectory(dir);
 
-        using var image = await Image.LoadAsync(content, ct);
-
-        // Downscale to fit MaxDimension x MaxDimension, preserving aspect ratio.
-        // Only shrink — never upscale a smaller source.
-        if (image.Width > MaxDimension || image.Height > MaxDimension)
+        // The extension was validated at the edge, but the bytes still might not
+        // be a real image (or could be corrupt). Decoding failures are bad input,
+        // not a server fault — translate them into a domain (400-class) error.
+        Image image;
+        try
         {
-            image.Mutate(x => x.Resize(new ResizeOptions
-            {
-                Mode = ResizeMode.Max,
-                Size = new Size(MaxDimension, MaxDimension),
-            }));
+            image = await Image.LoadAsync(content, ct);
+        }
+        catch (ImageFormatException)
+        {
+            // Covers UnknownImageFormatException + InvalidImageContentException.
+            throw new DomainException("That file isn't a valid image. Upload a JPG, PNG, or WebP.");
         }
 
-        var fileName = $"{personId}-{Guid.NewGuid():N}.webp";
-        await image.SaveAsWebpAsync(Path.Combine(dir, fileName), new WebpEncoder { Quality = 80 }, ct);
+        using (image)
+        {
+            // Downscale to fit MaxDimension x MaxDimension, preserving aspect ratio.
+            // Only shrink — never upscale a smaller source.
+            if (image.Width > MaxDimension || image.Height > MaxDimension)
+            {
+                image.Mutate(x => x.Resize(new ResizeOptions
+                {
+                    Mode = ResizeMode.Max,
+                    Size = new Size(MaxDimension, MaxDimension),
+                }));
+            }
 
-        return $"{UrlPrefix}/{SubFolder}/{fileName}";
+            var fileName = $"{personId}-{Guid.NewGuid():N}.webp";
+            await image.SaveAsWebpAsync(Path.Combine(dir, fileName), new WebpEncoder { Quality = 80 }, ct);
+
+            return $"{UrlPrefix}/{SubFolder}/{fileName}";
+        }
     }
 
     public Task DeleteAsync(string relativeUrl, CancellationToken ct = default)

@@ -1,3 +1,5 @@
+using System.Text;
+using api.Domain.Exceptions;
 using api.Infrastructure.Storage;
 using Microsoft.Extensions.Options;
 using SixLabors.ImageSharp;
@@ -91,6 +93,16 @@ public class LocalPhotoStorageIntegrationTests
             Assert.That(saved.Width, Is.EqualTo(100));
             Assert.That(saved.Height, Is.EqualTo(100));
         });
+    }
+
+    [Test]
+    public void SaveAsync_rejects_non_image_content_as_a_domain_error()
+    {
+        // Bytes that pass the extension check but aren't a real image must fail
+        // as a 400-class DomainException, never an unhandled (500) exception.
+        using var garbage = new MemoryStream(Encoding.UTF8.GetBytes("this is not an image"));
+
+        Assert.ThrowsAsync<DomainException>(() => _storage.SaveAsync(7, garbage));
     }
 
     [Test]

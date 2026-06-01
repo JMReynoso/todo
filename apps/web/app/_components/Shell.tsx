@@ -453,13 +453,22 @@ export function Shell({ children }: { children: ReactNode }) {
       });
   };
 
-  const uploadPhoto = (file: File) => {
-    if (!personId) return;
+  const uploadPhoto = async (file: File) => {
+    if (!personId) throw new Error('Not signed in.');
     const body = new FormData();
     body.append('file', file);
-    apiFetch<ApiPersonResponse>(`/api/persons/${personId}/photo`, { method: 'POST', body })
-      .then((p) => patchSettings('profile', { photo: p.photoUrl }))
-      .catch(() => {});
+    const p = await apiFetch<ApiPersonResponse>(
+      `/api/persons/${personId}/photo`,
+      { method: 'POST', body },
+    );
+    // Reflect the new photo in settings + every avatar. Skip the debounced
+    // profile PUT here — the photo URL is already persisted by the POST above,
+    // and re-sending it would only race that write.
+    setSettings((s) => {
+      const next = { ...s, profile: { ...s.profile, photo: p.photoUrl } };
+      settingsRef.current = next;
+      return next;
+    });
   };
 
   const requestClose = () => {
