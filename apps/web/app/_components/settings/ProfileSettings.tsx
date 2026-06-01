@@ -9,21 +9,58 @@ import styles from './settings.module.css';
 export interface ProfileSettingsProps {
   profile: ProfileSettingsValue;
   patch: (patch: Partial<ProfileSettingsValue>) => void;
-  onUploadPhoto: (file: File) => void;
+  onUploadPhoto: (file: File) => Promise<void>;
 }
 
 const PALETTE = ['#c97a3c', '#3d3a35', '#6a8c5d', '#4a76b8', '#a85878', '#7a6cb8'];
 
+// Mirror the server's limits (PersonController) so bad files are rejected
+// instantly, without uploading megabytes only to be turned away with a 400.
+const ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp'];
+const MAX_PHOTO_BYTES = 5 * 1024 * 1024; // 5 MB
+
+type UploadStatus =
+  | { state: 'idle' }
+  | { state: 'uploading' }
+  | { state: 'done' }
+  | { state: 'error'; message: string };
+
 export function ProfileSettings({ profile, patch, onUploadPhoto }: ProfileSettingsProps) {
   const [hover, setHover] = useState(false);
+  const [status, setStatus] = useState<UploadStatus>({ state: 'idle' });
   const fileRef = useRef<HTMLInputElement | null>(null);
 
-  const onPick = (e: ChangeEvent<HTMLInputElement>) => {
+  const onPick = async (e: ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files && e.target.files[0];
-    if (!f) return;
-    onUploadPhoto(f);
     e.target.value = '';
+    if (!f) return;
+
+    const ext = f.name.slice(f.name.lastIndexOf('.')).toLowerCase();
+    if (!ALLOWED_EXTENSIONS.includes(ext)) {
+      setStatus({
+        state: 'error',
+        message: `Unsupported file type. Allowed: ${ALLOWED_EXTENSIONS.join(', ')}.`,
+      });
+      return;
+    }
+    if (f.size > MAX_PHOTO_BYTES) {
+      setStatus({ state: 'error', message: 'File exceeds the 5 MB limit.' });
+      return;
+    }
+
+    setStatus({ state: 'uploading' });
+    try {
+      await onUploadPhoto(f);
+      setStatus({ state: 'done' });
+    } catch (err) {
+      setStatus({
+        state: 'error',
+        message: err instanceof Error ? err.message : 'Upload failed.',
+      });
+    }
   };
+
+  const uploading = status.state === 'uploading';
 
   // photoUrl is a server-relative path ("/uploads/avatars/…") — prefix with the API origin.
   const photoSrc = profile.photo
@@ -38,7 +75,7 @@ export function ProfileSettings({ profile, patch, onUploadPhoto }: ProfileSettin
         <div
           onMouseEnter={() => setHover(true)}
           onMouseLeave={() => setHover(false)}
-          onClick={() => fileRef.current && fileRef.current.click()}
+          onClick={() => !uploading && fileRef.current && fileRef.current.click()}
           title="Upload photo"
           style={{
             position: 'relative',
@@ -48,7 +85,7 @@ export function ProfileSettings({ profile, patch, onUploadPhoto }: ProfileSettin
             background: profile.color,
             padding: 3,
             flex: 'none',
-            cursor: 'pointer',
+            cursor: uploading ? 'wait' : 'pointer',
             boxShadow: '0 0 0 1px var(--bg)',
             transition: 'background 160ms ease',
           }}
@@ -95,26 +132,39 @@ export function ProfileSettings({ profile, patch, onUploadPhoto }: ProfileSettin
                 alignItems: 'center',
                 justifyContent: 'center',
                 background: 'rgba(20,16,10,0.55)',
-                opacity: hover ? 1 : 0,
+                opacity: hover || uploading ? 1 : 0,
                 transition: 'opacity 160ms ease',
                 color: '#fff',
                 flexDirection: 'column',
                 gap: 3,
               }}
             >
-              <svg
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.6"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M3 8a2 2 0 0 1 2-2h2l2-2h6l2 2h2a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8z" />
-                <circle cx="12" cy="13" r="3.5" />
-              </svg>
+              {uploading ? (
+                <span
+                  style={{
+                    width: 20,
+                    height: 20,
+                    borderRadius: 999,
+                    border: '2px solid rgba(255,255,255,0.35)',
+                    borderTopColor: '#fff',
+                    animation: 'profile-spin 700ms linear infinite',
+                  }}
+                />
+              ) : (
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.6"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M3 8a2 2 0 0 1 2-2h2l2-2h6l2 2h2a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8z" />
+                  <circle cx="12" cy="13" r="3.5" />
+                </svg>
+              )}
               <span
                 style={{
                   fontFamily: 'var(--mono)',
@@ -123,9 +173,10 @@ export function ProfileSettings({ profile, patch, onUploadPhoto }: ProfileSettin
                   textTransform: 'uppercase',
                 }}
               >
-                {photoSrc ? 'change' : 'upload'}
+                {uploading ? 'uploading' : photoSrc ? 'change' : 'upload'}
               </span>
             </div>
+            <style>{'@keyframes profile-spin{to{transform:rotate(360deg)}}'}</style>
           </div>
           <input
             ref={fileRef}
@@ -148,6 +199,27 @@ export function ProfileSettings({ profile, patch, onUploadPhoto }: ProfileSettin
           >
             ring color {profile.photo && '· photo set'}
           </div>
+          {status.state !== 'idle' && (
+            <div
+              role="status"
+              style={{
+                fontFamily: 'var(--mono)',
+                fontSize: 10.5,
+                letterSpacing: '0.02em',
+                marginBottom: 8,
+                color:
+                  status.state === 'error'
+                    ? '#c0492f'
+                    : status.state === 'done'
+                      ? 'var(--accent, #6a8c5d)'
+                      : 'var(--ink-3)',
+              }}
+            >
+              {status.state === 'uploading' && 'Uploading photo…'}
+              {status.state === 'done' && '✓ Photo updated'}
+              {status.state === 'error' && status.message}
+            </div>
+          )}
           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
             {PALETTE.map((c) => (
               <button
