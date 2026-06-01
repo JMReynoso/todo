@@ -20,6 +20,11 @@ public class TodoResetJobTests
     {
         _todoRepo = new Mock<ITodoRepository>();
         _scoreCache = new Mock<IScoreCache>();
+        // Both queries default to empty; individual tests opt in via SetupTodos/SetupOnce.
+        _todoRepo.Setup(r => r.GetDoneRecurringAsync(It.IsAny<CancellationToken>()))
+                 .ReturnsAsync(Array.Empty<Todo>());
+        _todoRepo.Setup(r => r.GetIncompleteOnceAsync(It.IsAny<CancellationToken>()))
+                 .ReturnsAsync(Array.Empty<Todo>());
         _todoRepo.Setup(r => r.SaveChangesAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
         _scoreCache.Setup(c => c.InvalidateAsync(It.IsAny<int>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
         _job = new TodoResetJob(_todoRepo.Object, _scoreCache.Object);
@@ -41,6 +46,19 @@ public class TodoResetJobTests
 
     private void SetupTodos(params Todo[] todos) =>
         _todoRepo.Setup(r => r.GetDoneRecurringAsync(It.IsAny<CancellationToken>()))
+                 .ReturnsAsync(todos);
+
+    // An open one-off task anchored on startsOn (DueOn mirrors StartsOn for Once).
+    private static Todo IncompleteOnce(DateOnly startsOn, int ownerId = 1)
+    {
+        var todo = Todo.Create("task", Cadence.Once, ownerId);
+        todo.SetStartsOn(startsOn);
+        todo.SetDueOn(startsOn);
+        return todo;
+    }
+
+    private void SetupOnce(params Todo[] todos) =>
+        _todoRepo.Setup(r => r.GetIncompleteOnceAsync(It.IsAny<CancellationToken>()))
                  .ReturnsAsync(todos);
 
     // ── No-op when nothing to reset ───────────────────────────────────────────
@@ -229,6 +247,73 @@ public class TodoResetJobTests
     {
         var todo = CompletedTodo(Cadence.Daily, dueOn: Today.AddDays(1));
         SetupTodos(todo);
+
+        await _job.ExecuteAsync();
+
+        _scoreCache.Verify(c => c.InvalidateAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    // ── One-off roll-forward (open Once tasks follow the current day) ──────────
+
+    [Test]
+    public async Task ExecuteAsync_OpenOnceFromYesterday_RollsAnchorToToday()
+    {
+        var todo = IncompleteOnce(startsOn: Today.AddDays(-1));
+        SetupOnce(todo);
+
+        await _job.ExecuteAsync();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(todo.StartsOn, Is.EqualTo(Today));
+            Assert.That(todo.DueOn, Is.EqualTo(Today));
+            Assert.That(todo.Done, Is.False);
+        });
+    }
+
+    [Test]
+    public async Task ExecuteAsync_OpenOnceOverdueByDays_RollsStraightToToday()
+    {
+        // Even if the job missed runs, the anchor catches up to today rather than
+        // creeping forward one stale day at a time.
+        var todo = IncompleteOnce(startsOn: Today.AddDays(-5));
+        SetupOnce(todo);
+
+        await _job.ExecuteAsync();
+
+        Assert.That(todo.StartsOn, Is.EqualTo(Today));
+    }
+
+    [Test]
+    public async Task ExecuteAsync_OpenOnceDueToday_StaysPut()
+    {
+        var todo = IncompleteOnce(startsOn: Today);
+        SetupOnce(todo);
+
+        await _job.ExecuteAsync();
+
+        Assert.That(todo.StartsOn, Is.EqualTo(Today));
+    }
+
+    [Test]
+    public async Task ExecuteAsync_OpenOnceDueInFuture_StaysPut()
+    {
+        var startsOn = Today.AddDays(3);
+        var todo = IncompleteOnce(startsOn: startsOn);
+        SetupOnce(todo);
+
+        await _job.ExecuteAsync();
+
+        Assert.That(todo.StartsOn, Is.EqualTo(startsOn));
+    }
+
+    [Test]
+    public async Task ExecuteAsync_RollingOpenOnceForward_DoesNotInvalidateCache()
+    {
+        // Rolling an open one-off changes only its anchor, not its Done state, so
+        // the owner's score is unaffected and the cache need not be cleared.
+        var todo = IncompleteOnce(startsOn: Today.AddDays(-1));
+        SetupOnce(todo);
 
         await _job.ExecuteAsync();
 
