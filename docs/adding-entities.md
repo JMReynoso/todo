@@ -156,3 +156,25 @@ public class CreateTodoListRequestValidator : AbstractValidator<CreateTodoListRe
 ```
 
 > Validators are scanned automatically by `AddValidatorsFromAssembly` in `Application/DependencyInjection.cs` — no registration needed.
+
+## 4. Test it — across all three layers
+
+A new entity touches Domain, Infrastructure, and Application, so cover each in
+the same change:
+
+- **Domain unit tests** (`apps/api/test/unit/Domain/`) — assert the entity's
+  factory guards and behavior (invariants, state transitions). These need no
+  mocks. Use `.WithId(n)` from `TestSupport` when a persisted id is needed.
+- **Service unit tests** (`apps/api/test/unit/Services/`) — cover the new
+  application service paths with the repository interface **mocked** and the real
+  validator wired in.
+- **Repository integration tests** (`apps/api/test/integration/Infrastructure/`) —
+  prove the EF mapping and repository round-trip against a **real Postgres
+  container**: persistence of all columns/relations, FK behavior (cascade /
+  set-null), and any query filters. This is also where the new migration is
+  validated end to end.
+
+See [Backend unit tests](backend-unit-tests.md) and [Backend integration
+tests](backend-integration-tests.md) for conventions. The CI **Build & Test**
+job runs all of them and enforces the coverage threshold — see the [GitHub
+workflow](github-workflow.md).

@@ -47,3 +47,21 @@ public class TodoListsController(
     }
 }
 ```
+
+## Test the endpoint
+
+Adding an endpoint isn't done until it's tested. Add tests in the same change:
+
+- **Controller unit test** (`apps/api/test/unit/Controllers/`) — assert the HTTP
+  result mapping (`Ok` / `NotFound` / `Created` / `NoContent`). The controller
+  takes the concrete service backed by **mocked repositories**, so no database is
+  involved. See [Backend unit tests](backend-unit-tests.md).
+- **Service unit test** (`apps/api/test/unit/Services/`) — if the endpoint adds
+  application logic, cover the new branches with the repository/cache interfaces
+  mocked and the real validators.
+- **Integration test** (`apps/api/test/integration/`) — if the endpoint relies on
+  new query/persistence behavior (filters, FK rules, cascades), prove it against
+  the real Postgres/Redis stack. See [Backend integration tests](backend-integration-tests.md).
+
+The CI **Build & Test** job runs all of these and enforces the coverage
+threshold, so untested code will fail the PR — see the [GitHub workflow](github-workflow.md).

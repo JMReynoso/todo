@@ -43,8 +43,19 @@ apps/web/
 
 ---
 
-## Guides
+## Documentation
 
+- [Backend technologies & why](docs/backend-technologies.md)
+
+**Testing**
+- [Backend unit tests](docs/backend-unit-tests.md)
+- [Backend integration tests](docs/backend-integration-tests.md)
+- [Frontend unit tests](docs/frontend-unit-tests.md)
+
+**Operations**
+- [GitHub workflow (CI / Deploy)](docs/github-workflow.md) — production + demo instances
+
+**Guides**
 - [Adding a new entity](docs/adding-entities.md)
 - [Adding new endpoints](docs/adding-endpoints.md)
 - [Profile picture storage](docs/profile-picture-storage.md)
