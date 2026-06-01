@@ -34,7 +34,7 @@ export async function apiFetch<T>(path: string, options?: RequestInit): Promise<
   // The flag is a NEXT_PUBLIC_* var inlined at build time, so in production
   // this condition is frozen to `false` and the mock is never reached. The
   // import is dynamic so the mock loads only in the demo build.
-  if (process.env.NEXT_PUBLIC_DEMO === '1') {
+  if (process.env.NEXT_PUBLIC_DEMO === 'true') {
     const { demoFetch } = await import('./demo/store');
     return demoFetch<T>(path, options);
   }

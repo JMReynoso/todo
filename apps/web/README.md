@@ -22,7 +22,7 @@ This project uses [`next/font`](https://nextjs.org/docs/app/building-your-applic
 
 ## Demo mode
 
-Setting the build-time flag `NEXT_PUBLIC_DEMO=1` produces a **frontend-only
+Setting the build-time flag `NEXT_PUBLIC_DEMO=true` produces a **frontend-only
 demo build** that runs entirely in the browser — no API, database, or auth:
 
 - `apiFetch` is served by an in-browser mock backed by `localStorage` and
@@ -34,7 +34,7 @@ demo build** that runs entirely in the browser — no API, database, or auth:
 Run it locally:
 
 ```bash
-NEXT_PUBLIC_DEMO=1 pnpm build && NEXT_PUBLIC_DEMO=1 pnpm start
+NEXT_PUBLIC_DEMO=true pnpm build && NEXT_PUBLIC_DEMO=true pnpm start
 ```
 
 The demo deploys as the `web-demo` service in `infra/docker-compose.prod.yml`

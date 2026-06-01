@@ -21,7 +21,7 @@ services:
       context: ../apps/web
       dockerfile: Dockerfile.prod
       args:
-        NEXT_PUBLIC_DEMO: "1"
+        NEXT_PUBLIC_DEMO: "true"
     ports:
       - "3101:3000"
     restart: unless-stopped
