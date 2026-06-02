@@ -6,7 +6,8 @@ namespace api.Application.Todos;
 /// Hangfire job that keeps tasks current at each day boundary. Runs daily at
 /// midnight UTC.
 ///
-/// <para>Recurring tasks: a done task reopens once today has reached its
+/// <para>Recurring tasks: a done task extends its streak (it was completed for
+/// the period that just ended), reopens once today has reached its
 /// <see cref="Domain.Entities.Todo.DueOn"/>, then rolls into its next cycle
 /// (StartsOn := DueOn, DueOn := StartsOn + one cadence period).</para>
 ///
@@ -27,6 +28,9 @@ public class TodoResetJob(ITodoRepository todos, IScoreCache scoreCache)
             // Skip until the due date has arrived. Legacy rows without a DueOn
             // (DueOn is null) are left untouched rather than reset blindly.
             if (task.DueOn is not DateOnly dueOn || today < dueOn) continue;
+            // The task was done for the period that just ended, so the streak
+            // grows before it reopens for the next cycle.
+            task.IncrementStreak();
             task.Reopen();
             task.AdvanceCycle();
             foreach (var sub in task.Subtasks)
