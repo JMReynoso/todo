@@ -51,8 +51,8 @@ public class TodoControllerTests
 
     private static UpdateTodoRequest UpdateRequest(
         string title = "t", Priority priority = Priority.Med,
-        int? assigneeId = null, bool done = false) =>
-        new(title, priority, Today, null, "", assigneeId, done, []);
+        int? assigneeId = null, bool done = false, Cadence cadence = Cadence.Daily) =>
+        new(title, cadence, priority, Today, null, "", assigneeId, done, []);
 
     private void SetUserClaim(int userId) =>
         _controller.ControllerContext = new ControllerContext

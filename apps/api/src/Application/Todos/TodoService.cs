@@ -81,6 +81,7 @@ public class TodoService(
         if (todo is null) return null;
 
         todo.SetTitle(request.Title);
+        todo.SetCadence(request.Cadence);
         todo.SetPriority(request.Priority);
         todo.SetStartsOn(request.StartsOn);
         todo.SetDueOn(request.DueOn);

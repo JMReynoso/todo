@@ -236,6 +236,7 @@ export function Shell({ children }: { children: ReactNode }) {
 
   const buildTaskBody = (t: Task) => ({
     title: t.title || 'Untitled',
+    cadence: t.cadence,
     priority: t.priority,
     startsOn: t.startsOn,
     // DueOn is derived and locked — always recompute so it stays in sync.

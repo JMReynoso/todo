@@ -208,6 +208,7 @@ export async function demoFetch<T>(path: string, options?: RequestInit): Promise
     if (method === 'PUT') {
       const b = body();
       todo.title = String(b.title ?? todo.title);
+      todo.cadence = String(b.cadence ?? todo.cadence);
       todo.priority = String(b.priority ?? todo.priority);
       todo.startsOn = String(b.startsOn ?? todo.startsOn);
       todo.dueOn = (b.dueOn as string | null) ?? null;

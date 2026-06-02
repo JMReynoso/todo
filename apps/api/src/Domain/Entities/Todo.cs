@@ -83,6 +83,8 @@ public class Todo : Entity
 
     public void SetPriority(Priority priority) => Priority = priority;
 
+    public void SetCadence(Cadence cadence) => Cadence = cadence;
+
     public void SetStartsOn(DateOnly startsOn) => StartsOn = startsOn;
 
     public void SetDueOn(DateOnly? dueOn) => DueOn = dueOn;
