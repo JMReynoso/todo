@@ -181,6 +181,34 @@ public class TodoResetJobTests
         Assert.That(todo.DueOn, Is.EqualTo(dueOn.AddMonths(3)));
     }
 
+    // ── Streak ────────────────────────────────────────────────────────────────
+
+    [Test]
+    public async Task ExecuteAsync_DueRecurringReset_IncrementsStreak()
+    {
+        var todo = CompletedTodo(Cadence.Daily, dueOn: Today.AddDays(-1));
+        todo.IncrementStreak();
+        todo.IncrementStreak(); // streak = 2 going into the reset
+
+        SetupTodos(todo);
+
+        await _job.ExecuteAsync();
+
+        Assert.That(todo.Streak, Is.EqualTo(3));
+    }
+
+    [Test]
+    public async Task ExecuteAsync_DueInTheFuture_DoesNotIncrementStreak()
+    {
+        // Not yet rolled over, so the streak stays put.
+        var todo = CompletedTodo(Cadence.Weekly, dueOn: Today.AddDays(1));
+        SetupTodos(todo);
+
+        await _job.ExecuteAsync();
+
+        Assert.That(todo.Streak, Is.EqualTo(0));
+    }
+
     // ── Subtask reset ─────────────────────────────────────────────────────────
 
     [Test]
