@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { TaskRow } from './TaskRow';
 import type { Task } from '../../_types';
 
@@ -6,9 +7,23 @@ export interface TaskListProps {
   onOpen: (id: string) => void;
   onToggle: (id: string) => void;
   hairlines: boolean;
+  onReorder?: (orderedIds: string[]) => void;
 }
 
-export function TaskList({ tasks, onOpen, onToggle, hairlines }: TaskListProps) {
+export function TaskList({ tasks, onOpen, onToggle, hairlines, onReorder }: TaskListProps) {
+  const [dragIdx, setDragIdx] = useState<number | null>(null);
+  const [overIdx, setOverIdx] = useState<number | null>(null);
+
+  const handleDrop = (targetIdx: number) => {
+    if (dragIdx === null || dragIdx === targetIdx || !onReorder) return;
+    const reordered = [...tasks];
+    const [moved] = reordered.splice(dragIdx, 1);
+    reordered.splice(targetIdx, 0, moved);
+    onReorder(reordered.map((t) => t.id));
+    setDragIdx(null);
+    setOverIdx(null);
+  };
+
   if (tasks.length === 0) {
     return (
       <div
@@ -35,6 +50,25 @@ export function TaskList({ tasks, onOpen, onToggle, hairlines }: TaskListProps) 
           onOpen={onOpen}
           onToggle={onToggle}
           hairline={hairlines && i < tasks.length - 1}
+          isDragOver={overIdx === i}
+          onDragStart={onReorder ? () => setDragIdx(i) : undefined}
+          onDragOver={
+            onReorder
+              ? (e) => {
+                  e.preventDefault();
+                  setOverIdx(i);
+                }
+              : undefined
+          }
+          onDrop={onReorder ? () => handleDrop(i) : undefined}
+          onDragEnd={
+            onReorder
+              ? () => {
+                  setDragIdx(null);
+                  setOverIdx(null);
+                }
+              : undefined
+          }
         />
       ))}
     </ul>

@@ -13,6 +13,7 @@ export default function HomePage() {
     toggleTask,
     createDraftFor,
     createOnDate,
+    reorderTasks,
   } = useTodo();
 
   if (tweaks.layout === 'calendar') {
@@ -33,6 +34,7 @@ export default function HomePage() {
       onOpen={setOpenId}
       onToggle={toggleTask}
       onAdd={createDraftFor}
+      onReorder={reorderTasks}
       query={query}
       hairlines={tweaks.showHairlines}
     />

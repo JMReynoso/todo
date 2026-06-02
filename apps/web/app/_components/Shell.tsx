@@ -124,6 +124,7 @@ export function Shell({ children }: { children: ReactNode }) {
   const [openId, setOpenId] = useState<string | null>(null);
   const [draft, setDraft] = useState<Task | null>(null);
   const [closing, setClosing] = useState(false);
+  const [discardConfirm, setDiscardConfirm] = useState(false);
   const [query, setQuery] = useState('');
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settings, setSettings] = useState<Settings>(INITIAL_SETTINGS);
@@ -411,6 +412,60 @@ export function Shell({ children }: { children: ReactNode }) {
     }
   };
 
+  const editSubtask = (subId: string, title: string) => {
+    if (!openTask) return;
+    const taskId = openTask.id;
+    if (draft) {
+      setDraft((d) =>
+        d ? { ...d, subtasks: d.subtasks.map((s) => s.id === subId ? { ...s, title } : s) } : d,
+      );
+      return;
+    }
+    setTasks((xs) =>
+      xs.map((x) =>
+        x.id === taskId
+          ? { ...x, subtasks: x.subtasks.map((s) => s.id === subId ? { ...s, title } : s) }
+          : x,
+      ),
+    );
+    const numTaskId = Number(taskId);
+    const numSubId = Number(subId);
+    if (isNaN(numTaskId) || isNaN(numSubId)) return;
+    apiFetch(`/api/todos/${numTaskId}/subtasks/${numSubId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ title }),
+    }).catch(() => {});
+  };
+
+  const reorderSubtasks = (orderedIds: string[]) => {
+    if (!openTask) return;
+    const taskId = openTask.id;
+    const subtaskMap = new Map(openTask.subtasks.map((s) => [s.id, s]));
+    const reordered = orderedIds.map((id) => subtaskMap.get(id)).filter(Boolean) as typeof openTask.subtasks;
+    if (draft) {
+      setDraft((d) => (d ? { ...d, subtasks: reordered } : d));
+      return;
+    }
+    setTasks((xs) =>
+      xs.map((x) => (x.id === taskId ? { ...x, subtasks: reordered } : x)),
+    );
+  };
+
+  const reorderTasks = (orderedIds: string[]) => {
+    setTasks((xs) => {
+      const taskMap = new Map(xs.map((t) => [t.id, t]));
+      const reorderedSlice = orderedIds.map((id) => taskMap.get(id)).filter(Boolean) as Task[];
+      const reorderedSet = new Set(orderedIds);
+      const rest = xs.filter((t) => !reorderedSet.has(t.id));
+      // Find where to insert: replace the first occurrence of any reordered task
+      const firstIdx = xs.findIndex((t) => reorderedSet.has(t.id));
+      if (firstIdx === -1) return xs;
+      const next = [...rest];
+      next.splice(firstIdx, 0, ...reorderedSlice);
+      return next;
+    });
+  };
+
   const addSubtask = (title: string) => {
     if (!openTask) return;
     const numId = Number(openTask.id);
@@ -472,13 +527,22 @@ export function Shell({ children }: { children: ReactNode }) {
     });
   };
 
-  const requestClose = () => {
+  const forceClose = () => {
     setClosing(true);
+    setDiscardConfirm(false);
     setTimeout(() => {
       setOpenId(null);
       setDraft(null);
       setClosing(false);
     }, 280);
+  };
+
+  const requestClose = () => {
+    if (draft?.isDraft && (draft.title.trim() || draft.notes.trim() || draft.subtasks.length > 0)) {
+      setDiscardConfirm(true);
+      return;
+    }
+    forceClose();
   };
 
   // ESC closes the detail sheet.
@@ -500,6 +564,7 @@ export function Shell({ children }: { children: ReactNode }) {
     toggleTask,
     createDraftFor,
     createOnDate,
+    reorderTasks,
   };
 
   if (!mounted) return null;
@@ -534,7 +599,92 @@ export function Shell({ children }: { children: ReactNode }) {
                 onAddSubtask={addSubtask}
                 onToggleSubtask={toggleSubtask}
                 onDeleteSubtask={deleteSubtask}
+                onEditSubtask={editSubtask}
+                onReorderSubtasks={reorderSubtasks}
               />
+            )}
+
+            {discardConfirm && (
+              <div
+                onClick={() => setDiscardConfirm(false)}
+                style={{
+                  position: 'fixed',
+                  inset: 0,
+                  background: 'rgba(0,0,0,0.45)',
+                  zIndex: 200,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <div
+                  onClick={(e) => e.stopPropagation()}
+                  style={{
+                    background: 'var(--bg-elev)',
+                    borderRadius: 16,
+                    padding: '28px 28px 24px',
+                    width: 320,
+                    boxShadow: '0 8px 40px rgba(0,0,0,0.18)',
+                    border: '1px solid var(--line)',
+                  }}
+                >
+                  <div
+                    style={{
+                      fontFamily: 'var(--display)',
+                      fontWeight: 500,
+                      fontSize: 18,
+                      letterSpacing: '-0.02em',
+                      color: 'var(--ink)',
+                      marginBottom: 10,
+                    }}
+                  >
+                    Leave without saving?
+                  </div>
+                  <p
+                    style={{
+                      fontSize: 14,
+                      color: 'var(--ink-3)',
+                      lineHeight: 1.5,
+                      margin: '0 0 22px',
+                    }}
+                  >
+                    This task will be discarded if you leave now.
+                  </p>
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    <button
+                      onClick={forceClose}
+                      style={{
+                        flex: 1,
+                        padding: '11px 16px',
+                        borderRadius: 999,
+                        background: 'oklch(0.55 0.18 25)',
+                        color: '#fff',
+                        border: 'none',
+                        fontSize: 13.5,
+                        fontWeight: 500,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Leave
+                    </button>
+                    <button
+                      onClick={() => setDiscardConfirm(false)}
+                      style={{
+                        flex: 1,
+                        padding: '11px 16px',
+                        borderRadius: 999,
+                        border: '1px solid var(--line)',
+                        color: 'var(--ink-2)',
+                        background: 'transparent',
+                        fontSize: 13.5,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              </div>
             )}
 
             {settingsOpen && (

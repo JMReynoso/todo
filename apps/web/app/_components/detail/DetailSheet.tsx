@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useLayoutEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Check } from '../atoms/Check';
 import { Icon } from '../atoms/Icon';
 import { Pill } from '../atoms/Pill';
@@ -28,6 +28,8 @@ export interface DetailSheetProps {
   onAddSubtask: (title: string) => void;
   onToggleSubtask: (id: string) => void;
   onDeleteSubtask: (id: string) => void;
+  onEditSubtask: (id: string, title: string) => void;
+  onReorderSubtasks: (orderedIds: string[]) => void;
 }
 
 const PRIORITIES: Priority[] = ['low', 'med', 'high'];
@@ -43,6 +45,8 @@ export function DetailSheet({
   onAddSubtask,
   onToggleSubtask,
   onDeleteSubtask,
+  onEditSubtask,
+  onReorderSubtasks,
 }: DetailSheetProps) {
   const { scoring } = useSettings();
   const isMobile = useMobile();
@@ -60,6 +64,20 @@ export function DetailSheet({
   const delSub = (id: string) => onDeleteSubtask(id);
 
   const [newSub, setNewSub] = useState('');
+  const [subDragIdx, setSubDragIdx] = useState<number | null>(null);
+  const [subOverIdx, setSubOverIdx] = useState<number | null>(null);
+  const [subHover, setSubHover] = useState<number | null>(null);
+  const subLongPressRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleSubDrop = (targetIdx: number) => {
+    if (subDragIdx === null || subDragIdx === targetIdx) return;
+    const reordered = [...task.subtasks];
+    const [moved] = reordered.splice(subDragIdx, 1);
+    reordered.splice(targetIdx, 0, moved);
+    onReorderSubtasks(reordered.map((s) => s.id));
+    setSubDragIdx(null);
+    setSubOverIdx(null);
+  };
 
   // Trigger focus on draft titles once the dialog has animated in.
   useEffect(() => {
@@ -341,32 +359,59 @@ export function DetailSheet({
               </span>
             </SectionHead>
             <ul style={{ listStyle: 'none', margin: '0 0 8px', padding: 0 }}>
-              {task.subtasks.map((s) => (
+              {task.subtasks.map((s, i) => (
                 <li
                   key={s.id}
+                  draggable
+                  onDragStart={() => setSubDragIdx(i)}
+                  onDragOver={(e) => { e.preventDefault(); setSubOverIdx(i); }}
+                  onDrop={() => handleSubDrop(i)}
+                  onDragEnd={() => { setSubDragIdx(null); setSubOverIdx(null); }}
+                  onTouchStart={() => {
+                    subLongPressRef.current = setTimeout(() => setSubDragIdx(i), 500);
+                  }}
+                  onTouchEnd={() => {
+                    if (subLongPressRef.current) clearTimeout(subLongPressRef.current);
+                  }}
+                  onMouseEnter={() => setSubHover(i)}
+                  onMouseLeave={() => setSubHover(null)}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: 12,
+                    gap: 8,
                     padding: '6px 0',
+                    borderTop: subOverIdx === i ? '2px solid var(--accent)' : '2px solid transparent',
+                    cursor: 'grab',
                   }}
                 >
+                  <span
+                    style={{
+                      color: 'var(--ink-4)',
+                      opacity: subHover === i ? 1 : 0,
+                      transition: 'opacity 120ms ease',
+                      flexShrink: 0,
+                    }}
+                  >
+                    <Icon name="grip" size={14} />
+                  </span>
                   <Check
                     checked={s.done}
                     onChange={() => toggleSub(s.id)}
                     size={15}
                   />
-                  <span
+                  <input
+                    value={s.title}
+                    onChange={(e) => onEditSubtask(s.id, e.target.value)}
                     style={{
                       flex: 1,
                       fontSize: 14,
                       color: s.done ? 'var(--ink-3)' : 'var(--ink-2)',
                       textDecoration: s.done ? 'line-through' : 'none',
                       textDecorationColor: 'var(--ink-4)',
+                      background: 'transparent',
+                      padding: '2px 0',
                     }}
-                  >
-                    {s.title}
-                  </span>
+                  />
                   <button
                     onClick={() => delSub(s.id)}
                     style={{ color: 'var(--ink-4)', opacity: 0.7 }}
