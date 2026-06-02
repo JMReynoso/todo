@@ -117,7 +117,7 @@ describe('Icon', () => {
   const names: IconName[] = [
     'close', 'plus', 'more', 'search', 'filter', 'flame', 'calendar', 'tag',
     'user', 'chevron', 'chart', 'back', 'gear', 'list', 'columns', 'tabs',
-    'stacked', 'arrow', 'trash',
+    'stacked', 'arrow', 'trash', 'grip',
   ];
 
   it.each(names)('renders an svg for "%s"', (name) => {

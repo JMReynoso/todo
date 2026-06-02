@@ -88,6 +88,14 @@ describe('taskUrgency', () => {
     expect(u).toBeGreaterThanOrEqual(0);
     expect(u).toBeLessThanOrEqual(1);
   });
+
+  it('returns non-zero urgency for an overdue once task (gradient suppressed at render layer)', () => {
+    // taskUrgency itself does not special-case "once" — the red gradient is
+    // suppressed in TaskRow (issue #38). This test documents that contract so
+    // the suppression is not accidentally moved into this function.
+    const u = taskUrgency(makeTask({ cadence: 'once', dueOn: '2026-06-09' }));
+    expect(u).toBe(1);
+  });
 });
 
 describe('nextDueOn', () => {
