@@ -75,6 +75,14 @@ public class TodoTests
         Assert.That(todo.Notes, Is.EqualTo(string.Empty));
     }
 
+    [Test]
+    public void SetCadence_ChangesCadence()
+    {
+        var todo = NewTodo(Cadence.Once);
+        todo.SetCadence(Cadence.Weekly);
+        Assert.That(todo.Cadence, Is.EqualTo(Cadence.Weekly));
+    }
+
     [TestCase(Cadence.Daily, "2026-01-02")]
     [TestCase(Cadence.Weekly, "2026-01-08")]
     [TestCase(Cadence.Monthly, "2026-02-01")]

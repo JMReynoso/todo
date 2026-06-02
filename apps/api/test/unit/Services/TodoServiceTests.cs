@@ -43,8 +43,8 @@ public class TodoServiceTests
 
     private static UpdateTodoRequest UpdateRequest(
         string title = "t", Priority priority = Priority.Med,
-        int? assigneeId = null, bool done = false) =>
-        new(title, priority, Today, null, "", assigneeId, done, []);
+        int? assigneeId = null, bool done = false, Cadence cadence = Cadence.Daily) =>
+        new(title, cadence, priority, Today, null, "", assigneeId, done, []);
 
     [Test]
     public void CreateAsync_InvalidRequest_ThrowsValidation()
@@ -153,6 +153,19 @@ public class TodoServiceTests
             Assert.That(result.Assignee!.Id, Is.EqualTo(2));
         });
         _todos.Verify(t => t.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Test]
+    public async Task UpdateAsync_ChangesCadence()
+    {
+        var todo = Todo.Create("one-off", Cadence.Once, ownerId: 1).WithId(5);
+        _todos.Setup(t => t.GetByIdAsync(5, It.IsAny<CancellationToken>())).ReturnsAsync(todo);
+        _persons.Setup(p => p.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(PersonWithId(1));
+
+        var result = await _service.UpdateAsync(5, UpdateRequest(cadence: Cadence.Weekly));
+
+        Assert.That(result, Is.Not.Null);
+        Assert.That(result!.Cadence, Is.EqualTo(Cadence.Weekly));
     }
 
     [Test]

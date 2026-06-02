@@ -2,9 +2,9 @@ using api.Domain.Enums;
 
 namespace api.Application.DTOs.Requests;
 
-// Cadence is set at creation only (no domain setter), so it's not editable here.
 public record UpdateTodoRequest(
     string Title,
+    Cadence Cadence,
     Priority Priority,
     DateOnly StartsOn,
     DateOnly? DueOn,

@@ -312,4 +312,34 @@ public class TodoRepositoryIntegrationTests : DatabaseIntegrationTestBase
             Assert.That(all.Select(t => t.Title), Is.EquivalentTo(new[] { "a", "b" }));
         }
     }
+
+    [Test]
+    public async Task Changing_cadence_persists_across_reload()
+    {
+        var ownerId = await SeedPersonAsync("Owner", "owner@x.com");
+
+        int todoId;
+        await using (var db = IntegrationFixture.NewDbContext())
+        {
+            var repo = new TodoRepository(db);
+            var todo = Todo.Create("one-off", Cadence.Once, ownerId);
+            await repo.AddAsync(todo);
+            await repo.SaveChangesAsync();
+            todoId = todo.Id;
+        }
+
+        await using (var db = IntegrationFixture.NewDbContext())
+        {
+            var repo = new TodoRepository(db);
+            var todo = await repo.GetByIdAsync(todoId);
+            todo!.SetCadence(Cadence.Weekly);
+            await repo.SaveChangesAsync();
+        }
+
+        await using (var db = IntegrationFixture.NewDbContext())
+        {
+            var loaded = await new TodoRepository(db).GetByIdAsync(todoId);
+            Assert.That(loaded!.Cadence, Is.EqualTo(Cadence.Weekly));
+        }
+    }
 }
