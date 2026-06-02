@@ -61,7 +61,34 @@ try
     builder.Services.AddInfrastructure(builder.Configuration);
 
     builder.Services.AddEndpointsApiExplorer();
-    builder.Services.AddSwaggerGen();
+    builder.Services.AddSwaggerGen(options =>
+    {
+        // Wire up JWT bearer auth so Swagger UI can exercise the protected
+        // endpoints without the frontend. Log in via POST /api/auth/login
+        // (seeded dev users: alice@example.com / alice123), copy the returned
+        // token, then click "Authorize" and paste it — the scheme below adds
+        // the "Authorization: Bearer <token>" header to every request.
+        var scheme = new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+        {
+            Name = "Authorization",
+            Type = Microsoft.OpenApi.Models.SecuritySchemeType.Http,
+            Scheme = "bearer",
+            BearerFormat = "JWT",
+            In = Microsoft.OpenApi.Models.ParameterLocation.Header,
+            Description = "Paste only the JWT from POST /api/auth/login (no \"Bearer \" prefix).",
+            Reference = new Microsoft.OpenApi.Models.OpenApiReference
+            {
+                Id = JwtBearerDefaults.AuthenticationScheme,
+                Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme,
+            },
+        };
+
+        options.AddSecurityDefinition(JwtBearerDefaults.AuthenticationScheme, scheme);
+        options.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
+        {
+            [scheme] = Array.Empty<string>(),
+        });
+    });
 
     // Resolve the uploads root: an absolute "PhotoStorage:RootPath" override if
     // set, otherwise {ContentRoot}/uploads — which is /app/uploads in the

@@ -79,6 +79,7 @@ pnpm dev
 ```
 
 - Swagger UI: `https://localhost:7191/swagger`
+  - To call protected endpoints, expand `POST /api/auth/login`, log in with a seeded dev user (`alice@example.com` / `alice123`), copy the `token` from the response, then click **Authorize** and paste it.
 - Hangfire dashboard: `https://localhost:7191/hangfire`
 - Seq logs: `http://localhost:5341`
 - Frontend: `http://localhost:3000` (when run via the dev compose instead of `pnpm dev`, it's exposed at `http://localhost:3100`)
