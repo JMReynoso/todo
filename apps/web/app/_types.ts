@@ -127,4 +127,5 @@ export type IconName =
   | 'tabs'
   | 'stacked'
   | 'arrow'
-  | 'trash';
+  | 'trash'
+  | 'grip';

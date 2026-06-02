@@ -19,6 +19,7 @@ export interface TodoContextValue {
   toggleTask: (id: string) => void;
   createDraftFor: (cadence: Cadence) => void;
   createOnDate: (date: Date) => void;
+  reorderTasks: (orderedIds: string[]) => void;
 }
 
 export const TodoCtx = createContext<TodoContextValue | null>(null);

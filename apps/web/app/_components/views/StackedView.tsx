@@ -15,6 +15,7 @@ export interface StackedViewProps {
   onOpen: (id: string) => void;
   onToggle: (id: string) => void;
   onAdd: (cadence: Cadence) => void;
+  onReorder: (orderedIds: string[]) => void;
   query: string;
   hairlines: boolean;
 }
@@ -30,6 +31,7 @@ export function StackedView({
   onOpen,
   onToggle,
   onAdd,
+  onReorder,
   query,
   hairlines,
 }: StackedViewProps) {
@@ -261,6 +263,7 @@ export function StackedView({
           onOpen={onOpen}
           onToggle={onToggle}
           onAdd={onAdd}
+          onReorder={onReorder}
           hairlines={hairlines}
           mounted={mounted}
         />
@@ -349,6 +352,7 @@ export function StackedView({
                 onOpen={onOpen}
                 onToggle={onToggle}
                 hairlines={hairlines}
+                onReorder={onReorder}
               />
 
               <Composer cadence={c.id} onAdd={onAdd} />

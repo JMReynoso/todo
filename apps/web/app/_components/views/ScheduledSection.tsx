@@ -12,6 +12,7 @@ export interface ScheduledSectionProps {
   onOpen: (id: string) => void;
   onToggle: (id: string) => void;
   onAdd: (cadence: Cadence) => void;
+  onReorder: (orderedIds: string[]) => void;
   hairlines: boolean;
   mounted: boolean;
 }
@@ -22,6 +23,7 @@ export function ScheduledSection({
   onOpen,
   onToggle,
   onAdd,
+  onReorder,
   hairlines,
   mounted,
 }: ScheduledSectionProps) {
@@ -132,7 +134,7 @@ export function ScheduledSection({
             >
               {label}
             </div>
-            <TaskList tasks={items} onOpen={onOpen} onToggle={onToggle} hairlines={hairlines} />
+            <TaskList tasks={items} onOpen={onOpen} onToggle={onToggle} hairlines={hairlines} onReorder={onReorder} />
           </div>
         );
       })}

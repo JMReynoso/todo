@@ -1,11 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Avatar } from '../atoms/Avatar';
 import { Check } from '../atoms/Check';
 import { Icon } from '../atoms/Icon';
 import { Pill } from '../atoms/Pill';
 import { PriorityDot } from '../atoms/PriorityDot';
+import { useMobile } from '../../_context/MobileCtx';
 import { useSettings } from '../../_context/SettingsCtx';
 import { useResolvedPerson } from '../../_hooks/useResolvedPeople';
 import { formatIso, nextResetLabel, taskUrgency } from '../../_lib/dates';
@@ -16,20 +17,60 @@ export interface TaskRowProps {
   onOpen: (id: string) => void;
   onToggle: (id: string) => void;
   hairline: boolean;
+  isDragOver?: boolean;
+  onDragStart?: () => void;
+  onDragOver?: (e: React.DragEvent) => void;
+  onDrop?: () => void;
+  onDragEnd?: () => void;
 }
 
-export function TaskRow({ task, onOpen, onToggle, hairline }: TaskRowProps) {
+export function TaskRow({
+  task,
+  onOpen,
+  onToggle,
+  hairline,
+  isDragOver,
+  onDragStart,
+  onDragOver,
+  onDrop,
+  onDragEnd,
+}: TaskRowProps) {
   const [hover, setHover] = useState(false);
   const { scoring } = useSettings();
   const streakThreshold = scoring.streakThreshold ?? 3;
   const resolvedAssignee = useResolvedPerson(task.assignee);
+  const isMobile = useMobile();
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const urgency = taskUrgency(task);
+  // Once tasks never show the red urgency gradient (issue #38)
   const urgentBg =
-    urgency > 0
+    urgency > 0 && task.cadence !== 'once'
       ? `linear-gradient(90deg, oklch(0.97 0.025 25 / ${0.35 + urgency * 0.25}), oklch(0.88 0.14 25 / ${0.30 + urgency * 0.55}))`
       : null;
+
+  const handleTouchStart = () => {
+    if (!onDragStart) return;
+    longPressTimer.current = setTimeout(() => {
+      onDragStart();
+    }, 500);
+  };
+  const handleTouchEnd = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  };
+
   return (
     <li
+      draggable={!!onDragStart}
+      onDragStart={onDragStart}
+      onDragOver={onDragOver}
+      onDrop={onDrop}
+      onDragEnd={onDragEnd}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+      onTouchCancel={handleTouchEnd}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       style={{
@@ -39,6 +80,7 @@ export function TaskRow({ task, onOpen, onToggle, hairline }: TaskRowProps) {
         minHeight: 'var(--row-h)',
         padding: '8px 4px',
         borderBottom: hairline ? '1px solid var(--line)' : '1px solid transparent',
+        borderTop: isDragOver ? '2px solid var(--accent)' : '2px solid transparent',
         transition: 'background 140ms ease',
         background: urgentBg || (hover ? 'rgba(0,0,0,0.012)' : 'transparent'),
         marginLeft: -4,
@@ -46,8 +88,22 @@ export function TaskRow({ task, onOpen, onToggle, hairline }: TaskRowProps) {
         paddingLeft: 4,
         paddingRight: 4,
         borderRadius: 4,
+        cursor: onDragStart ? 'grab' : 'default',
       }}
     >
+      {!isMobile && onDragStart && (
+        <span
+          style={{
+            color: 'var(--ink-4)',
+            opacity: hover ? 1 : 0,
+            transition: 'opacity 120ms ease',
+            cursor: 'grab',
+            flexShrink: 0,
+          }}
+        >
+          <Icon name="grip" size={16} />
+        </span>
+      )}
       <Check checked={task.done} onChange={() => onToggle(task.id)} />
       <button
         onClick={() => onOpen(task.id)}

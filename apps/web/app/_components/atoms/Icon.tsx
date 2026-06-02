@@ -145,6 +145,17 @@ export function Icon({ name, size = 16, stroke = 1.5, color = 'currentColor' }: 
           <path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" />
         </svg>
       );
+    case 'grip':
+      return (
+        <svg {...props} strokeWidth={0}>
+          <circle cx="9" cy="7" r="1.5" fill={color} />
+          <circle cx="15" cy="7" r="1.5" fill={color} />
+          <circle cx="9" cy="12" r="1.5" fill={color} />
+          <circle cx="15" cy="12" r="1.5" fill={color} />
+          <circle cx="9" cy="17" r="1.5" fill={color} />
+          <circle cx="15" cy="17" r="1.5" fill={color} />
+        </svg>
+      );
     default:
       return null;
   }
