@@ -373,7 +373,7 @@ export function StackedView({
                     }}
                   >
                     Completed · {doneList.length}
-                    {nextResetLabel(c.id) && (
+                    {c.id === 'daily' && nextResetLabel(c.id) && (
                       <span style={{ color: 'var(--ink-4)' }}>
                         {' '}
                         · resets {nextResetLabel(c.id)}
