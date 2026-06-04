@@ -16,6 +16,7 @@ public static class DependencyInjection
 
         services.AddScoped<TodoService>();
         services.AddScoped<TodoResetJob>();
+        services.AddScoped<TodoLedgerPruneJob>();
         services.AddScoped<PersonService>();
         services.AddScoped<ScoringService>();
         services.AddScoped<AuthService>();

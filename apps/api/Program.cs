@@ -148,6 +148,10 @@ try
         "todo-daily-reset",
         job => job.ExecuteAsync(CancellationToken.None),
         Cron.Daily);
+    jobs.AddOrUpdate<TodoLedgerPruneJob>(
+        "todo-ledger-prune",
+        job => job.ExecuteAsync(CancellationToken.None),
+        Cron.Yearly);
 
     app.MapGet("/", () => Results.Redirect("/swagger")).ExcludeFromDescription();
 

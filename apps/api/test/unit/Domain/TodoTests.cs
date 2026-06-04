@@ -117,6 +117,34 @@ public class TodoTests
     }
 
     [Test]
+    public void PruneCompletedDatesBefore_DropsOldDates_KeepsRecentAndBoundary()
+    {
+        var todo = NewTodo();
+        var cutoff = new DateOnly(2026, 1, 1);
+        todo.Complete(new DateOnly(2024, 12, 31)); // before cutoff → pruned
+        todo.Complete(cutoff);                     // on cutoff → kept
+        todo.Complete(new DateOnly(2026, 6, 4));   // after cutoff → kept
+
+        var removed = todo.PruneCompletedDatesBefore(cutoff);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(removed, Is.True);
+            Assert.That(todo.CompletedDates, Does.Not.Contain(new DateOnly(2024, 12, 31)));
+            Assert.That(todo.CompletedDates, Does.Contain(cutoff));
+            Assert.That(todo.CompletedDates, Does.Contain(new DateOnly(2026, 6, 4)));
+        });
+    }
+
+    [Test]
+    public void PruneCompletedDatesBefore_NothingOld_ReturnsFalse()
+    {
+        var todo = NewTodo();
+        todo.Complete(new DateOnly(2026, 6, 4));
+        Assert.That(todo.PruneCompletedDatesBefore(new DateOnly(2026, 1, 1)), Is.False);
+    }
+
+    [Test]
     public void SetTitle_Blank_Throws() =>
         Assert.Throws<ArgumentException>(() => NewTodo().SetTitle("  "));
 

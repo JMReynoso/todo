@@ -88,6 +88,14 @@ public class Todo : Entity
     }
 
     /// <summary>
+    /// Drops completed dates strictly older than <paramref name="cutoff"/> to keep
+    /// the ledger bounded. Returns true if any entry was removed. Used by the
+    /// yearly prune job; history within the retention window is left intact.
+    /// </summary>
+    public bool PruneCompletedDatesBefore(DateOnly cutoff) =>
+        _completedDates.RemoveAll(d => d < cutoff) > 0;
+
+    /// <summary>
     /// Clears the current-period <see cref="Done"/> flag. When <paramref name="on"/>
     /// is supplied, the matching ledger entry is also dropped — this undoes an
     /// accidental same-day check on the board. The reset job reopens for a *new*
