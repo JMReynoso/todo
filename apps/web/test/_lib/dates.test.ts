@@ -182,8 +182,14 @@ describe('isCompletedOn', () => {
     expect(isCompletedOn(t, date)).toBe(false);
   });
 
-  it('is false for an empty ledger', () => {
-    expect(isCompletedOn(makeTask({ completedDates: [] }), date)).toBe(false);
+  it('is false for an empty ledger when the task is not done', () => {
+    expect(isCompletedOn(makeTask({ completedDates: [], done: false }), date)).toBe(false);
+  });
+
+  it('falls back to the done flag when the ledger is empty and the task is done', () => {
+    // Tasks that predate per-day tracking have completedDates: [] but done: true.
+    // The calendar should still cross them off rather than leaving them unstyled.
+    expect(isCompletedOn(makeTask({ completedDates: [], done: true }), date)).toBe(true);
   });
 
   it('reads each day independently, so one occurrence can differ from another', () => {

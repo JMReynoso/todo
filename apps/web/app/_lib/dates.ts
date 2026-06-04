@@ -103,12 +103,18 @@ export function nextDueOn(startsOn: string, cadence: Cadence): string {
 }
 
 /**
- * Whether this task was completed on the given calendar day. Read by the
- * calendar so each rendered occurrence reflects *that day's* completion from
- * the durable `completedDates` ledger, rather than the shared `done` flag.
+ * Whether this task was completed on the given calendar day. Checks the
+ * durable `completedDates` ledger first so each rendered occurrence reflects
+ * its own per-day completion. Falls back to the global `done` flag when the
+ * ledger is empty — covering tasks that predate per-day tracking (e.g. rows
+ * that existed before the CompletedDates column was added and carry no history).
  */
 export function isCompletedOn(task: Task, date: Date): boolean {
-  return task.completedDates?.includes(isoDate(date)) ?? false;
+  if (task.completedDates?.length) {
+    return task.completedDates.includes(isoDate(date));
+  }
+  // Ledger is empty — fall back to the global done flag.
+  return task.done;
 }
 
 export function tasksOnDate(tasks: Task[], date: Date): Task[] {
