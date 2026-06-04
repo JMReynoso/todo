@@ -276,6 +276,49 @@ public class TodoServiceTests
     }
 
     [Test]
+    public async Task UpdateAsync_WhenAlreadyDoneAndDoneUnchanged_DoesNotRestampCompletionLedger()
+    {
+        // A done task that receives a non-done-state edit (e.g. title change) must
+        // NOT call Complete() again — that would stamp today as a new completion
+        // date and overwrite LastCompletedOn even though the task was completed
+        // on a prior day.
+        var yesterday = Today.AddDays(-1);
+        var todo = Todo.Create("task", Cadence.Daily, ownerId: 1).WithId(5);
+        todo.Complete(yesterday); // completed yesterday
+        _todos.Setup(t => t.GetByIdAsync(5, It.IsAny<CancellationToken>())).ReturnsAsync(todo);
+        _persons.Setup(p => p.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(PersonWithId(1));
+
+        await _service.UpdateAsync(5, UpdateRequest(title: "new title", done: true));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(todo.LastCompletedOn, Is.EqualTo(yesterday));
+            Assert.That(todo.CompletedDates, Is.EquivalentTo(new[] { yesterday }));
+        });
+    }
+
+    [Test]
+    public async Task UpdateAsync_WhenNotDoneAndDoneUnchanged_DoesNotRemoveTodayFromLedger()
+    {
+        // An already-not-done task getting a non-done-state edit must NOT call
+        // Reopen(today), which would silently drop today's date from CompletedDates
+        // even though the task was never unchecked by the user.
+        var todo = Todo.Create("task", Cadence.Daily, ownerId: 1).WithId(5);
+        todo.Complete(Today); // completed today...
+        todo.Reopen(Today);   // ...then unchecked (so Done=false, CompletedDates=[])
+        // Simulate reset-job history: task was completed yesterday and reset.
+        todo.Complete(Today.AddDays(-1));
+        todo.Reopen(); // reset job opens without a date — keeps history
+        // Now Done=false, CompletedDates=[yesterday].
+        _todos.Setup(t => t.GetByIdAsync(5, It.IsAny<CancellationToken>())).ReturnsAsync(todo);
+        _persons.Setup(p => p.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(PersonWithId(1));
+
+        await _service.UpdateAsync(5, UpdateRequest(title: "new title", done: false));
+
+        Assert.That(todo.CompletedDates, Does.Contain(Today.AddDays(-1)));
+    }
+
+    [Test]
     public async Task ToggleSubtaskAsync_TodoNotFound_ReturnsNull()
     {
         _todos.Setup(t => t.GetByIdAsync(7, It.IsAny<CancellationToken>())).ReturnsAsync((Todo?)null);
