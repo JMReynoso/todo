@@ -39,9 +39,10 @@ export function DayCell({
   const [hover, setHover] = useState(false);
   const [windowed, setWindowed] = useState(false);
   const isMobile = useMobile();
-  // Mobile shows only dots, so any tap opens the window; desktop escalates at
-  // the threshold once its inline chips overflow.
-  const useWindow = isMobile ? dayTasks.length > 0 : dayTasks.length >= WINDOW_THRESHOLD;
+  // Mobile has no hover, so the in-cell "+" affordance can't work there — every
+  // tap opens the window instead (which carries its own add button), even for
+  // empty days. Desktop escalates to the window only once inline chips overflow.
+  const useWindow = isMobile ? true : dayTasks.length >= WINDOW_THRESHOLD;
 
   const visible = dayTasks.slice(0, 4);
   const overflow = dayTasks.length - visible.length;
@@ -71,12 +72,14 @@ export function DayCell({
 
   return (
     <div
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
+      onMouseEnter={isMobile ? undefined : () => setHover(true)}
+      onMouseLeave={isMobile ? undefined : () => setHover(false)}
       onClick={useWindow ? () => setWindowed(true) : undefined}
       title={
         useWindow
-          ? `Open ${dayTasks.length} ${dayTasks.length === 1 ? 'task' : 'tasks'} for this day`
+          ? dayTasks.length > 0
+            ? `Open ${dayTasks.length} ${dayTasks.length === 1 ? 'task' : 'tasks'} for this day`
+            : 'Open this day'
           : undefined
       }
       style={{
@@ -115,48 +118,50 @@ export function DayCell({
         >
           {date.getDate()}
         </span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onAdd(date);
-            }}
-            title={`Add a task on ${date.toLocaleDateString(undefined, {
-              month: 'short',
-              day: 'numeric',
-            })}`}
-            style={{
-              width: 20,
-              height: 20,
-              borderRadius: 999,
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              background: 'var(--ink)',
-              color: 'var(--bg)',
-              opacity: hover ? 1 : 0,
-              transform: hover ? 'scale(1)' : 'scale(0.85)',
-              transition:
-                'opacity 140ms ease, transform 140ms ease, background 140ms ease',
-              pointerEvents: hover ? 'auto' : 'none',
-              boxShadow: '0 4px 10px -3px rgba(20,16,10,0.25)',
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--accent)')}
-            onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--ink)')}
-          >
-            <svg
-              width="11"
-              height="11"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.2"
-              strokeLinecap="round"
+        {!isMobile && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onAdd(date);
+              }}
+              title={`Add a task on ${date.toLocaleDateString(undefined, {
+                month: 'short',
+                day: 'numeric',
+              })}`}
+              style={{
+                width: 20,
+                height: 20,
+                borderRadius: 999,
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: 'var(--ink)',
+                color: 'var(--bg)',
+                opacity: hover ? 1 : 0,
+                transform: hover ? 'scale(1)' : 'scale(0.85)',
+                transition:
+                  'opacity 140ms ease, transform 140ms ease, background 140ms ease',
+                pointerEvents: hover ? 'auto' : 'none',
+                boxShadow: '0 4px 10px -3px rgba(20,16,10,0.25)',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--accent)')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--ink)')}
             >
-              <path d="M12 5v14M5 12h14" />
-            </svg>
-          </button>
-        </div>
+              <svg
+                width="11"
+                height="11"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+              >
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+            </button>
+          </div>
+        )}
       </div>
       {isMobile
         ? dayTasks.length > 0 && (
