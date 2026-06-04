@@ -89,10 +89,15 @@ public class TodoService(
         todo.SetTags(request.Tags ?? []);
 
         var doneChanged = request.Done != todo.Done;
-        // Un-checking removes today's ledger entry (an accidental same-day check);
-        // completing records it. Past completions stay in the ledger either way.
-        if (request.Done) todo.Complete();
-        else todo.Reopen(DateOnly.FromDateTime(DateTime.UtcNow));
+        if (doneChanged)
+        {
+            // Un-checking removes today's ledger entry (an accidental same-day
+            // check); completing records it. Only act when done actually changed
+            // so that non-done edits (title, notes, etc.) don't stamp today as a
+            // new completion date or remove a legitimate one from the ledger.
+            if (request.Done) todo.Complete();
+            else todo.Reopen(DateOnly.FromDateTime(DateTime.UtcNow));
+        }
 
         if (request.AssigneeId is int assigneeId)
             todo.AssignTo(assigneeId);
