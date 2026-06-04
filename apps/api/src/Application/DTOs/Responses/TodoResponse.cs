@@ -16,4 +16,5 @@ public record TodoResponse(
     PersonResponse? Assignee,
     DateTime CreatedAt,
     IReadOnlyList<string> Tags,
-    IReadOnlyList<SubtaskResponse> Subtasks);
+    IReadOnlyList<SubtaskResponse> Subtasks,
+    IReadOnlyList<string> CompletedDates);

@@ -2,6 +2,7 @@
 
 import { useState, type CSSProperties } from 'react';
 import { useMobile } from '../../_context/MobileCtx';
+import { isCompletedOn } from '../../_lib/dates';
 import type { Cadence, Task } from '../../_types';
 import { DayModal } from './DayModal';
 
@@ -45,23 +46,28 @@ export function DayCell({
   const visible = dayTasks.slice(0, 4);
   const overflow = dayTasks.length - visible.length;
 
-  const chipStyle = (t: Task): CSSProperties => ({
-    display: 'flex',
-    alignItems: 'center',
-    gap: 5,
-    padding: '3px 7px 3px 6px',
-    borderRadius: 5,
-    background: cadenceTint[t.cadence],
-    color: cadenceInk[t.cadence],
-    fontSize: 11.5,
-    lineHeight: 1.2,
-    textAlign: 'left',
-    borderLeft: `2px solid ${cadenceInk[t.cadence]}`,
-    textDecoration: t.done ? 'line-through' : 'none',
-    textDecorationColor: cadenceInk[t.cadence],
-    opacity: t.done ? 0.55 : 1,
-    fontStyle: t.title ? 'normal' : 'italic',
-  });
+  // Completion is read per-day from the ledger, so a recurring task can show
+  // done on the days it was checked off and open on the days it wasn't.
+  const chipStyle = (t: Task): CSSProperties => {
+    const doneOnDay = isCompletedOn(t, date);
+    return {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 5,
+      padding: '3px 7px 3px 6px',
+      borderRadius: 5,
+      background: cadenceTint[t.cadence],
+      color: cadenceInk[t.cadence],
+      fontSize: 11.5,
+      lineHeight: 1.2,
+      textAlign: 'left',
+      borderLeft: `2px solid ${cadenceInk[t.cadence]}`,
+      textDecoration: doneOnDay ? 'line-through' : 'none',
+      textDecorationColor: cadenceInk[t.cadence],
+      opacity: doneOnDay ? 0.55 : 1,
+      fontStyle: t.title ? 'normal' : 'italic',
+    };
+  };
 
   return (
     <div
@@ -179,7 +185,7 @@ export function DayCell({
                     borderRadius: 999,
                     flex: 'none',
                     background: cadenceInk[t.cadence],
-                    opacity: t.done ? 0.4 : 1,
+                    opacity: isCompletedOn(t, date) ? 0.4 : 1,
                   }}
                 />
               ))}

@@ -30,6 +30,12 @@ public class TodoConfiguration : IEntityTypeConfiguration<Todo>
         todo.PrimitiveCollection(nameof(Todo.Tags))
             .UsePropertyAccessMode(PropertyAccessMode.Field);
 
+        // CompletedDates: the per-day completion ledger, stored the same way as
+        // Tags — a primitive collection in one column, read/written via the
+        // _completedDates backing field.
+        todo.PrimitiveCollection(nameof(Todo.CompletedDates))
+            .UsePropertyAccessMode(PropertyAccessMode.Field);
+
         // Owner: required FK to a Person, referenced by id only. Cascade so a
         // person's owned tasks are removed with them — an owned task can never
         // be left pointing at a non-existent owner. Distinct from AssigneeId.

@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { useMobile } from '../../_context/MobileCtx';
-import { CADENCES } from '../../_data/constants';
-import { tasksOnDate } from '../../_lib/dates';
+import { CADENCES, HISTORY_RETENTION_MONTHS } from '../../_data/constants';
+import { earliestHistoryMonth, monthProgress, tasksOnDate } from '../../_lib/dates';
 import type { Task } from '../../_types';
+import { Progress } from '../atoms/Progress';
 import { DayCell, type CadenceColorMap } from './DayCell';
 
 export interface CalendarViewProps {
@@ -65,6 +66,23 @@ export function CalendarView({
     month: 'long',
     year: 'numeric',
   });
+
+  // Backward navigation stops at the prune horizon — months before this have
+  // had their completion history trimmed, so there's nothing to show.
+  const earliest = earliestHistoryMonth(today, HISTORY_RETENTION_MONTHS);
+  const canGoPrev =
+    year > earliest.getFullYear() ||
+    (year === earliest.getFullYear() && month > earliest.getMonth());
+  const isFutureMonth =
+    year > today.getFullYear() ||
+    (year === today.getFullYear() && month > today.getMonth());
+
+  const progress = useMemo(() => {
+    const visible = tasks.filter(
+      (t) => !query || t.title.toLowerCase().includes(query.toLowerCase()),
+    );
+    return monthProgress(visible, year, month, new Date());
+  }, [tasks, query, year, month]);
 
   const startWeekday = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -129,6 +147,33 @@ export function CalendarView({
             {monthLabel.toLowerCase()}
             <span style={{ color: 'var(--accent)' }}>.</span>
           </h2>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+              marginTop: 14,
+            }}
+          >
+            {progress.total > 0 && (
+              <Progress done={progress.done} total={progress.total} />
+            )}
+            <span
+              style={{
+                fontFamily: 'var(--mono)',
+                fontSize: 11,
+                color: 'var(--ink-3)',
+                letterSpacing: '0.06em',
+                textTransform: 'uppercase',
+              }}
+            >
+              {progress.total > 0
+                ? `${progress.done} of ${progress.total} completed`
+                : isFutureMonth
+                  ? 'upcoming'
+                  : 'no tasks scheduled'}
+            </span>
+          </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           {!isMobile && (
@@ -163,10 +208,28 @@ export function CalendarView({
             </div>
           )}
           <button
-            onClick={() => setView(new Date(year, month - 1, 1))}
-            style={navBtnStyle}
-            onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-sunken)')}
-            onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--bg-elev)')}
+            onClick={canGoPrev ? () => setView(new Date(year, month - 1, 1)) : undefined}
+            disabled={!canGoPrev}
+            title={
+              canGoPrev
+                ? 'Previous month'
+                : `History is kept for ${HISTORY_RETENTION_MONTHS} months — earlier data has been pruned`
+            }
+            style={{
+              ...navBtnStyle,
+              opacity: canGoPrev ? 1 : 0.4,
+              cursor: canGoPrev ? 'pointer' : 'not-allowed',
+            }}
+            onMouseEnter={
+              canGoPrev
+                ? (e) => (e.currentTarget.style.background = 'var(--bg-sunken)')
+                : undefined
+            }
+            onMouseLeave={
+              canGoPrev
+                ? (e) => (e.currentTarget.style.background = 'var(--bg-elev)')
+                : undefined
+            }
           >
             <svg
               width="14"

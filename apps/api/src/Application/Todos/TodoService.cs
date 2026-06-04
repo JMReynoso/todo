@@ -89,7 +89,10 @@ public class TodoService(
         todo.SetTags(request.Tags ?? []);
 
         var doneChanged = request.Done != todo.Done;
-        if (request.Done) todo.Complete(); else todo.Reopen();
+        // Un-checking removes today's ledger entry (an accidental same-day check);
+        // completing records it. Past completions stay in the ledger either way.
+        if (request.Done) todo.Complete();
+        else todo.Reopen(DateOnly.FromDateTime(DateTime.UtcNow));
 
         if (request.AssigneeId is int assigneeId)
             todo.AssignTo(assigneeId);

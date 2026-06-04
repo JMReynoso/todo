@@ -1,11 +1,13 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { demoFetch, resetDemoState } from '@/app/_lib/demo/store';
+import { isoDate } from '@/app/_lib/dates';
 
 interface Todo {
   id: number;
   title: string;
   done: boolean;
   subtasks: { id: number; title: string; done: boolean }[];
+  completedDates: string[];
   assignee: { id: number } | null;
 }
 interface Person { id: number; name: string; email: string; photoUrl: string | null; scoring: { includeMonthly: boolean } }
@@ -46,6 +48,24 @@ describe('demoFetch', () => {
     });
     expect(updated.title).toBe('B');
     expect(updated.done).toBe(true);
+  });
+
+  it('records today in the completion ledger on done, and drops it on un-check', async () => {
+    const today = isoDate(new Date());
+    const created = await post('/api/todos', { title: 'A', cadence: 'daily', startsOn: '2026-06-01' });
+    expect(created.completedDates).toEqual([]);
+
+    const put = (done: boolean) =>
+      demoFetch<Todo>(`/api/todos/${created.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ title: 'A', priority: 'med', startsOn: '2026-06-01', notes: '', done, tags: [], assigneeId: null }),
+      });
+
+    const done = await put(true);
+    expect(done.completedDates).toContain(today);
+
+    const reopened = await put(false);
+    expect(reopened.completedDates).not.toContain(today);
   });
 
   it('deletes a todo', async () => {

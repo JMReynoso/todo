@@ -6,8 +6,28 @@ import { isoDate, nextDueOn } from '../_lib/dates';
 // is derived from StartsOn + cadence below, exactly as the real app does.
 const iso = () => isoDate(new Date());
 
+/**
+ * The ISO dates of the previous `count` occurrences before today for a cadence,
+ * stepping back one period at a time. Used to seed a believable completion
+ * trail on the calendar — a task with a streak of N was completed its last N
+ * periods. One-offs don't recur, so they get no trail.
+ */
+function pastOccurrences(cadence: Task['cadence'], count: number): string[] {
+  const out: string[] = [];
+  const d = new Date();
+  for (let i = 0; i < count; i++) {
+    if (cadence === 'daily') d.setDate(d.getDate() - 1);
+    else if (cadence === 'weekly') d.setDate(d.getDate() - 7);
+    else if (cadence === 'monthly') d.setMonth(d.getMonth() - 1);
+    else if (cadence === 'quarterly') d.setMonth(d.getMonth() - 3);
+    else break; // 'once': no recurrence
+    out.push(isoDate(d));
+  }
+  return out;
+}
+
 export const seed = (): Task[] => {
-  const tasks: Task[] = [
+  const tasks: Omit<Task, 'completedDates'>[] = [
   // DAILY
   {
     id: uid(),
@@ -320,5 +340,14 @@ export const seed = (): Task[] => {
     subtasks: [],
   },
   ];
-  return tasks.map((t) => ({ ...t, dueOn: nextDueOn(t.startsOn, t.cadence) }));
+  return tasks.map((t) => ({
+    ...t,
+    dueOn: nextDueOn(t.startsOn, t.cadence),
+    // Past trail from the streak, plus today when it's already checked off, so
+    // the calendar's per-day completion lines up with the board's `done` flag.
+    completedDates: [
+      ...pastOccurrences(t.cadence, Math.min(t.streak, 8)),
+      ...(t.done ? [iso()] : []),
+    ],
+  }));
 };

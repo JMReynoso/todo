@@ -2,6 +2,8 @@
 
 https://demo-todo.justinreynoso.dev/
 
+I made this app because I keep forgetting to do chores and my house is a mess 😭😭😭
+
 ## Project structure
 
 ### `apps/api` — .NET backend (clean architecture)

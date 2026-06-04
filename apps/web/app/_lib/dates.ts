@@ -102,6 +102,15 @@ export function nextDueOn(startsOn: string, cadence: Cadence): string {
   return isoDate(d);
 }
 
+/**
+ * Whether this task was completed on the given calendar day. Read by the
+ * calendar so each rendered occurrence reflects *that day's* completion from
+ * the durable `completedDates` ledger, rather than the shared `done` flag.
+ */
+export function isCompletedOn(task: Task, date: Date): boolean {
+  return task.completedDates?.includes(isoDate(date)) ?? false;
+}
+
 export function tasksOnDate(tasks: Task[], date: Date): Task[] {
   const wd = date.getDay();
   const dm = date.getDate();
@@ -127,6 +136,41 @@ export function tasksOnDate(tasks: Task[], date: Date): Task[] {
     }
   }
   return out;
+}
+
+/**
+ * Completed vs scheduled task-occurrences for a calendar month, counting only
+ * days through `today` — future days in the current month aren't "missed" yet,
+ * so they don't drag the ratio down. Drives the calendar's per-month progress
+ * ring.
+ */
+export function monthProgress(
+  tasks: Task[],
+  year: number,
+  month: number,
+  today: Date,
+): { done: number; total: number } {
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  let done = 0;
+  let total = 0;
+  for (let d = 1; d <= daysInMonth; d++) {
+    const date = new Date(year, month, d);
+    if (date > today) break; // stop at the future
+    for (const t of tasksOnDate(tasks, date)) {
+      total++;
+      if (isCompletedOn(t, date)) done++;
+    }
+  }
+  return { done, total };
+}
+
+/**
+ * First day of the earliest month still backed by retained history. Once the
+ * prune job trims entries older than `retentionMonths`, months before this have
+ * no data, so the calendar stops backward navigation here.
+ */
+export function earliestHistoryMonth(today: Date, retentionMonths: number): Date {
+  return new Date(today.getFullYear(), today.getMonth() - retentionMonths, 1);
 }
 
 export function formatDate(d: Date): string {

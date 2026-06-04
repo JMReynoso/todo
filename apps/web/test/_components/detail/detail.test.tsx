@@ -24,6 +24,7 @@ function makeTask(overrides: Partial<Task> = {}): Task {
     subtasks: [],
     notes: '',
     streak: 0,
+    completedDates: [],
     assignee: null,
     ...overrides,
   };

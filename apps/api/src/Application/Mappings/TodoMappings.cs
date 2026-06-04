@@ -22,7 +22,8 @@ public static class TodoMappings
         assignee,
         todo.CreatedAt,
         todo.Tags,
-        todo.Subtasks.Select(subtask => subtask.ToResponse()).ToList());
+        todo.Subtasks.Select(subtask => subtask.ToResponse()).ToList(),
+        todo.CompletedDates.Select(date => date.ToString("yyyy-MM-dd")).ToList());
 
     public static SubtaskResponse ToResponse(this Subtask subtask) =>
         new(subtask.Id, subtask.Title, subtask.Done, subtask.TodoId);

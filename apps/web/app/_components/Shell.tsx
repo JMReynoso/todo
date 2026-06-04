@@ -55,6 +55,7 @@ interface ApiTodo {
   id: number; title: string; cadence: string; done: boolean;
   priority: string; startsOn: string; dueOn: string | null;
   notes: string; streak: number; tags: string[]; subtasks: ApiSubtask[];
+  completedDates: string[];
   assignee: Pick<ApiPersonResponse, 'id'> | null;
 }
 
@@ -78,8 +79,19 @@ const mapApiTodo = (t: ApiTodo): Task => ({
   streak: t.streak,
   tags: t.tags,
   subtasks: t.subtasks.map(s => ({ id: String(s.id), title: s.title, done: s.done, taskId: t.id })),
+  completedDates: t.completedDates ?? [],
   assignee: t.assignee?.id ?? null,
 });
+
+/**
+ * Mirrors the backend ledger client-side so the calendar updates instantly:
+ * checking a task records today; un-checking drops it. Past days are untouched.
+ */
+const applyDoneToLedger = (completedDates: string[], done: boolean): string[] => {
+  const today = isoDate(new Date());
+  if (done) return completedDates.includes(today) ? completedDates : [...completedDates, today];
+  return completedDates.filter((d) => d !== today);
+};
 
 const TWEAK_DEFAULTS: Tweaks = {
   layout: 'stacked',
@@ -252,7 +264,7 @@ export function Shell({ children }: { children: ReactNode }) {
     const t = tasks.find((x) => x.id === id);
     if (!t) return;
     const newDone = !t.done;
-    updateTask(id, { done: newDone });
+    updateTask(id, { done: newDone, completedDates: applyDoneToLedger(t.completedDates, newDone) });
     const numId = Number(id);
     if (!isNaN(numId)) {
       apiFetch(`/api/todos/${numId}`, {
@@ -286,7 +298,9 @@ export function Shell({ children }: { children: ReactNode }) {
     }, 600);
   };
   const toggleOpen = () => {
-    if (openTask) patchOpen({ done: !openTask.done });
+    if (!openTask) return;
+    const newDone = !openTask.done;
+    patchOpen({ done: newDone, completedDates: applyDoneToLedger(openTask.completedDates, newDone) });
   };
 
   const toggleSubtask = (subId: string) => {
@@ -351,6 +365,7 @@ export function Shell({ children }: { children: ReactNode }) {
       subtasks: [],
       notes: '',
       streak: 0,
+      completedDates: [],
       assignee: null,
       isDraft: true,
     });
@@ -370,6 +385,7 @@ export function Shell({ children }: { children: ReactNode }) {
       subtasks: [],
       notes: '',
       streak: 0,
+      completedDates: [],
       assignee: null,
       isDraft: true,
     });

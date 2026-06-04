@@ -64,6 +64,87 @@ public class TodoTests
     }
 
     [Test]
+    public void Complete_RecordsTheDayInTheLedger()
+    {
+        var todo = NewTodo();
+        var date = new DateOnly(2026, 6, 4);
+        todo.Complete(date);
+        Assert.That(todo.CompletedDates, Does.Contain(date));
+    }
+
+    [Test]
+    public void Complete_SameDayTwice_DoesNotDuplicate()
+    {
+        var todo = NewTodo();
+        var date = new DateOnly(2026, 6, 4);
+        todo.Complete(date);
+        todo.Reopen();
+        todo.Complete(date);
+        Assert.That(todo.CompletedDates.Count(d => d == date), Is.EqualTo(1));
+    }
+
+    [Test]
+    public void Reopen_WithDate_RemovesThatDayFromLedger()
+    {
+        var todo = NewTodo();
+        var date = new DateOnly(2026, 6, 4);
+        todo.Complete(date);
+        todo.Reopen(date);
+        Assert.That(todo.CompletedDates, Does.Not.Contain(date));
+    }
+
+    [Test]
+    public void Reopen_WithoutDate_KeepsLedger()
+    {
+        // The reset job reopens for a new cycle and must not erase history.
+        var todo = NewTodo();
+        var date = new DateOnly(2026, 6, 4);
+        todo.Complete(date);
+        todo.Reopen();
+        Assert.That(todo.CompletedDates, Does.Contain(date));
+    }
+
+    [Test]
+    public void AdvanceCycle_KeepsCompletedDates()
+    {
+        var todo = NewTodo(Cadence.Daily);
+        var date = new DateOnly(2026, 6, 4);
+        todo.SetStartsOn(date);
+        todo.SetDueOn(date.AddDays(1));
+        todo.Complete(date);
+        todo.AdvanceCycle();
+        Assert.That(todo.CompletedDates, Does.Contain(date));
+    }
+
+    [Test]
+    public void PruneCompletedDatesBefore_DropsOldDates_KeepsRecentAndBoundary()
+    {
+        var todo = NewTodo();
+        var cutoff = new DateOnly(2026, 1, 1);
+        todo.Complete(new DateOnly(2024, 12, 31)); // before cutoff → pruned
+        todo.Complete(cutoff);                     // on cutoff → kept
+        todo.Complete(new DateOnly(2026, 6, 4));   // after cutoff → kept
+
+        var removed = todo.PruneCompletedDatesBefore(cutoff);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(removed, Is.True);
+            Assert.That(todo.CompletedDates, Does.Not.Contain(new DateOnly(2024, 12, 31)));
+            Assert.That(todo.CompletedDates, Does.Contain(cutoff));
+            Assert.That(todo.CompletedDates, Does.Contain(new DateOnly(2026, 6, 4)));
+        });
+    }
+
+    [Test]
+    public void PruneCompletedDatesBefore_NothingOld_ReturnsFalse()
+    {
+        var todo = NewTodo();
+        todo.Complete(new DateOnly(2026, 6, 4));
+        Assert.That(todo.PruneCompletedDatesBefore(new DateOnly(2026, 1, 1)), Is.False);
+    }
+
+    [Test]
     public void SetTitle_Blank_Throws() =>
         Assert.Throws<ArgumentException>(() => NewTodo().SetTitle("  "));
 
