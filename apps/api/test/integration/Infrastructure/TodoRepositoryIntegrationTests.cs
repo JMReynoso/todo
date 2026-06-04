@@ -50,6 +50,34 @@ public class TodoRepositoryIntegrationTests : DatabaseIntegrationTestBase
     }
 
     [Test]
+    public async Task Completed_dates_round_trip_through_the_database()
+    {
+        var ownerId = await SeedPersonAsync("Owner", "ledger@x.com");
+        var d1 = new DateOnly(2026, 6, 1);
+        var d2 = new DateOnly(2026, 6, 2);
+
+        int todoId;
+        await using (var db = IntegrationFixture.NewDbContext())
+        {
+            var repo = new TodoRepository(db);
+            var todo = Todo.Create("Daily journal", Cadence.Daily, ownerId);
+            todo.Complete(d1);
+            todo.Reopen();
+            todo.Complete(d2);
+            await repo.AddAsync(todo);
+            await repo.SaveChangesAsync();
+            todoId = todo.Id;
+        }
+
+        await using (var db = IntegrationFixture.NewDbContext())
+        {
+            var loaded = await new TodoRepository(db).GetByIdAsync(todoId);
+            Assert.That(loaded, Is.Not.Null);
+            Assert.That(loaded!.CompletedDates, Is.EquivalentTo(new[] { d1, d2 }));
+        }
+    }
+
+    [Test]
     public async Task Add_with_nonexistent_owner_violates_foreign_key()
     {
         await using var db = IntegrationFixture.NewDbContext();

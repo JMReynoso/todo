@@ -55,6 +55,16 @@ public class Todo : Entity
     private readonly List<string> _tags = [];
     public IReadOnlyList<string> Tags => _tags.AsReadOnly();
 
+    /// <summary>
+    /// Every calendar date on which this task was completed. Unlike
+    /// <see cref="LastCompletedOn"/> (a single date used for scoring), this keeps
+    /// the full per-day ledger so the calendar can mark which past occurrences
+    /// were done even after the reset job rolls a recurring task into its next
+    /// cycle. Stored as a primitive collection, mirroring <see cref="Tags"/>.
+    /// </summary>
+    private readonly List<DateOnly> _completedDates = [];
+    public IReadOnlyList<DateOnly> CompletedDates => _completedDates.AsReadOnly();
+
     private readonly List<Subtask> _subtasks = [];
     public IReadOnlyList<Subtask> Subtasks => _subtasks.AsReadOnly();
 
@@ -70,10 +80,24 @@ public class Todo : Entity
     public void Complete(DateOnly? completedOn = null)
     {
         Done = true;
-        LastCompletedOn = completedOn ?? DateOnly.FromDateTime(DateTime.UtcNow);
+        var date = completedOn ?? DateOnly.FromDateTime(DateTime.UtcNow);
+        LastCompletedOn = date;
+        // Record the day in the ledger (deduped) so the calendar remembers it
+        // across resets. The current-period flag lives in Done; this is history.
+        if (!_completedDates.Contains(date)) _completedDates.Add(date);
     }
 
-    public void Reopen() => Done = false;
+    /// <summary>
+    /// Clears the current-period <see cref="Done"/> flag. When <paramref name="on"/>
+    /// is supplied, the matching ledger entry is also dropped — this undoes an
+    /// accidental same-day check on the board. The reset job reopens for a *new*
+    /// cycle and passes no date (or the new day), so prior completions are kept.
+    /// </summary>
+    public void Reopen(DateOnly? on = null)
+    {
+        Done = false;
+        if (on is DateOnly date) _completedDates.Remove(date);
+    }
 
     public void SetTitle(string title)
     {

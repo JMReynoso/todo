@@ -4,6 +4,7 @@ import { useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 import { useMobile } from '../../_context/MobileCtx';
 import { useDismissable } from '../../_hooks/useDismissable';
+import { isCompletedOn } from '../../_lib/dates';
 import modal from '../modal.module.css';
 import type { Task } from '../../_types';
 import type { CadenceColorMap } from './DayCell';
@@ -42,23 +43,26 @@ export function DayModal({
   }, []);
   useDismissable(true, dialogRef, onClose);
 
-  const rowStyle = (t: Task): CSSProperties => ({
-    display: 'flex',
-    alignItems: 'center',
-    gap: 10,
-    padding: '9px 12px',
-    borderRadius: 8,
-    background: cadenceTint[t.cadence],
-    color: cadenceInk[t.cadence],
-    fontSize: 13.5,
-    lineHeight: 1.35,
-    textAlign: 'left',
-    borderLeft: `2px solid ${cadenceInk[t.cadence]}`,
-    textDecoration: t.done ? 'line-through' : 'none',
-    textDecorationColor: cadenceInk[t.cadence],
-    opacity: t.done ? 0.55 : 1,
-    width: '100%',
-  });
+  const rowStyle = (t: Task): CSSProperties => {
+    const doneOnDay = isCompletedOn(t, date);
+    return {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 10,
+      padding: '9px 12px',
+      borderRadius: 8,
+      background: cadenceTint[t.cadence],
+      color: cadenceInk[t.cadence],
+      fontSize: 13.5,
+      lineHeight: 1.35,
+      textAlign: 'left',
+      borderLeft: `2px solid ${cadenceInk[t.cadence]}`,
+      textDecoration: doneOnDay ? 'line-through' : 'none',
+      textDecorationColor: cadenceInk[t.cadence],
+      opacity: doneOnDay ? 0.55 : 1,
+      width: '100%',
+    };
+  };
 
   // The calendar grid is transformed (for its mount animation), which would clip
   // a position:fixed child — so portal out to the body to overlay the viewport.

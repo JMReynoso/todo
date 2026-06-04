@@ -5,6 +5,7 @@ import {
   endOfWindow,
   formatDate,
   formatIso,
+  isCompletedOn,
   isoDate,
   nextDueOn,
   nextResetLabel,
@@ -24,6 +25,7 @@ function makeTask(overrides: Partial<Task> = {}): Task {
     subtasks: [],
     notes: '',
     streak: 0,
+    completedDates: [],
     assignee: null,
     ...overrides,
   };
@@ -162,6 +164,31 @@ describe('tasksOnDate', () => {
     const match = makeTask({ id: 'q', cadence: 'quarterly', startsOn: '2026-03-10' });
     const out = tasksOnDate([match], date);
     expect(out.map((t) => t.id)).toEqual(['q']);
+  });
+});
+
+describe('isCompletedOn', () => {
+  const date = new Date(2026, 5, 10); // 2026-06-10
+
+  it('is true when the day is in the ledger', () => {
+    const t = makeTask({ completedDates: ['2026-06-09', '2026-06-10'] });
+    expect(isCompletedOn(t, date)).toBe(true);
+  });
+
+  it('is false when the day is not in the ledger', () => {
+    const t = makeTask({ completedDates: ['2026-06-09'] });
+    expect(isCompletedOn(t, date)).toBe(false);
+  });
+
+  it('is false for an empty ledger', () => {
+    expect(isCompletedOn(makeTask({ completedDates: [] }), date)).toBe(false);
+  });
+
+  it('reads each day independently, so one occurrence can differ from another', () => {
+    // A recurring task completed last Wednesday but not this one.
+    const t = makeTask({ cadence: 'weekly', completedDates: ['2026-06-03'] });
+    expect(isCompletedOn(t, new Date(2026, 5, 3))).toBe(true);
+    expect(isCompletedOn(t, new Date(2026, 5, 10))).toBe(false);
   });
 });
 

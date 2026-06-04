@@ -64,6 +64,59 @@ public class TodoTests
     }
 
     [Test]
+    public void Complete_RecordsTheDayInTheLedger()
+    {
+        var todo = NewTodo();
+        var date = new DateOnly(2026, 6, 4);
+        todo.Complete(date);
+        Assert.That(todo.CompletedDates, Does.Contain(date));
+    }
+
+    [Test]
+    public void Complete_SameDayTwice_DoesNotDuplicate()
+    {
+        var todo = NewTodo();
+        var date = new DateOnly(2026, 6, 4);
+        todo.Complete(date);
+        todo.Reopen();
+        todo.Complete(date);
+        Assert.That(todo.CompletedDates.Count(d => d == date), Is.EqualTo(1));
+    }
+
+    [Test]
+    public void Reopen_WithDate_RemovesThatDayFromLedger()
+    {
+        var todo = NewTodo();
+        var date = new DateOnly(2026, 6, 4);
+        todo.Complete(date);
+        todo.Reopen(date);
+        Assert.That(todo.CompletedDates, Does.Not.Contain(date));
+    }
+
+    [Test]
+    public void Reopen_WithoutDate_KeepsLedger()
+    {
+        // The reset job reopens for a new cycle and must not erase history.
+        var todo = NewTodo();
+        var date = new DateOnly(2026, 6, 4);
+        todo.Complete(date);
+        todo.Reopen();
+        Assert.That(todo.CompletedDates, Does.Contain(date));
+    }
+
+    [Test]
+    public void AdvanceCycle_KeepsCompletedDates()
+    {
+        var todo = NewTodo(Cadence.Daily);
+        var date = new DateOnly(2026, 6, 4);
+        todo.SetStartsOn(date);
+        todo.SetDueOn(date.AddDays(1));
+        todo.Complete(date);
+        todo.AdvanceCycle();
+        Assert.That(todo.CompletedDates, Does.Contain(date));
+    }
+
+    [Test]
     public void SetTitle_Blank_Throws() =>
         Assert.Throws<ArgumentException>(() => NewTodo().SetTitle("  "));
 

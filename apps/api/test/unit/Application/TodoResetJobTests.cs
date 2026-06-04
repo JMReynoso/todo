@@ -209,6 +209,25 @@ public class TodoResetJobTests
         Assert.That(todo.Streak, Is.EqualTo(0));
     }
 
+    // ── Completion ledger survives the roll-over ────────────────────────────────
+
+    [Test]
+    public async Task ExecuteAsync_DueRecurringReset_RetainsCompletionHistory()
+    {
+        // CompletedTodo() stamps today into the ledger; after the reset reopens
+        // and rolls the cycle, that history must remain for the calendar.
+        var todo = CompletedTodo(Cadence.Daily, dueOn: Today.AddDays(-1));
+        SetupTodos(todo);
+
+        await _job.ExecuteAsync();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(todo.Done, Is.False);
+            Assert.That(todo.CompletedDates, Does.Contain(Today));
+        });
+    }
+
     // ── Subtask reset ─────────────────────────────────────────────────────────
 
     [Test]

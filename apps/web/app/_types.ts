@@ -38,6 +38,12 @@ export interface Task {
   subtasks: Subtask[];
   notes: string;
   streak: number;
+  /**
+   * Every ISO yyyy-mm-dd this task was checked off. Unlike `done` (the current
+   * period's flag, wiped on reset), this is the durable per-day ledger the
+   * calendar reads to mark which past occurrences were completed.
+   */
+  completedDates: string[];
   assignee: PersonId | null;
   /** Present only on uncommitted drafts being edited in the detail modal. */
   isDraft?: boolean;

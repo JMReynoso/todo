@@ -102,6 +102,15 @@ export function nextDueOn(startsOn: string, cadence: Cadence): string {
   return isoDate(d);
 }
 
+/**
+ * Whether this task was completed on the given calendar day. Read by the
+ * calendar so each rendered occurrence reflects *that day's* completion from
+ * the durable `completedDates` ledger, rather than the shared `done` flag.
+ */
+export function isCompletedOn(task: Task, date: Date): boolean {
+  return task.completedDates?.includes(isoDate(date)) ?? false;
+}
+
 export function tasksOnDate(tasks: Task[], date: Date): Task[] {
   const wd = date.getDay();
   const dm = date.getDate();

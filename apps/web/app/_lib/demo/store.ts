@@ -1,5 +1,6 @@
 import type { ScoringSettings } from '../../_types';
 import { seed } from '../../_data/seed';
+import { isoDate } from '../dates';
 import { DEMO_PERSON } from './config';
 
 /**
@@ -40,6 +41,7 @@ interface ApiTodo {
   streak: number;
   tags: string[];
   subtasks: ApiSubtask[];
+  completedDates: string[];
   assignee: { id: number } | null;
 }
 
@@ -86,6 +88,7 @@ export function buildInitialState(): DemoState {
         done: s.done,
         todoId: id,
       })),
+      completedDates: [...t.completedDates],
       assignee: t.assignee != null ? { id: t.assignee } : null,
     };
   });
@@ -194,6 +197,7 @@ export async function demoFetch<T>(path: string, options?: RequestInit): Promise
         subtasks: ((b.subtasks as string[]) ?? [])
           .filter((title) => title && title.trim())
           .map((title) => ({ id: state.seq++, title, done: false, todoId: id })),
+        completedDates: [],
         assignee: b.assigneeId != null ? { id: Number(b.assigneeId) } : null,
       };
       state.todos.push(todo);
@@ -214,6 +218,14 @@ export async function demoFetch<T>(path: string, options?: RequestInit): Promise
       todo.dueOn = (b.dueOn as string | null) ?? null;
       todo.notes = String(b.notes ?? '');
       todo.done = Boolean(b.done);
+      // Mirror the backend ledger: completing records today, un-checking drops
+      // it; past completions are preserved either way.
+      const today = isoDate(new Date());
+      if (todo.done) {
+        if (!todo.completedDates.includes(today)) todo.completedDates = [...todo.completedDates, today];
+      } else {
+        todo.completedDates = todo.completedDates.filter((d) => d !== today);
+      }
       todo.tags = (b.tags as string[]) ?? [];
       todo.assignee = b.assigneeId != null ? { id: Number(b.assigneeId) } : null;
       saveState(state);
