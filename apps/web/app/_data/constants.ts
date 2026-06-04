@@ -44,3 +44,10 @@ export const URGENCY_WINDOW_HOURS: Record<Cadence, number> = {
 };
 
 export const WEEKDAYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const;
+
+/**
+ * Months of completion history kept before the yearly prune job trims older
+ * entries. Mirrors the API's `TodoLedgerPruneJob.RetentionMonths` — the calendar
+ * uses it to stop backward navigation once a month's data has been pruned.
+ */
+export const HISTORY_RETENTION_MONTHS = 24;

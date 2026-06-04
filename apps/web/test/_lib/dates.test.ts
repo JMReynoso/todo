@@ -2,11 +2,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Task } from '@/app/_types';
 import {
   cadencePeriodLabel,
+  earliestHistoryMonth,
   endOfWindow,
   formatDate,
   formatIso,
   isCompletedOn,
   isoDate,
+  monthProgress,
   nextDueOn,
   nextResetLabel,
   taskUrgency,
@@ -189,6 +191,50 @@ describe('isCompletedOn', () => {
     const t = makeTask({ cadence: 'weekly', completedDates: ['2026-06-03'] });
     expect(isCompletedOn(t, new Date(2026, 5, 3))).toBe(true);
     expect(isCompletedOn(t, new Date(2026, 5, 10))).toBe(false);
+  });
+});
+
+describe('monthProgress', () => {
+  const today = new Date(2026, 5, 15); // 2026-06-15
+
+  it('counts completed vs scheduled occurrences for a past month', () => {
+    // A daily task is scheduled every day of May (31), completed on two of them.
+    const t = makeTask({
+      cadence: 'daily',
+      completedDates: ['2026-05-01', '2026-05-02'],
+    });
+    const { done, total } = monthProgress([t], 2026, 4, today); // May
+    expect(total).toBe(31);
+    expect(done).toBe(2);
+  });
+
+  it('does not count days in the future', () => {
+    const t = makeTask({ cadence: 'daily' });
+    // Current month: only days 1–15 are counted (today is the 15th).
+    const { total } = monthProgress([t], 2026, 5, today); // June
+    expect(total).toBe(15);
+  });
+
+  it('reports zero for an entirely future month', () => {
+    const t = makeTask({ cadence: 'daily' });
+    const { done, total } = monthProgress([t], 2027, 0, today); // Jan 2027
+    expect(total).toBe(0);
+    expect(done).toBe(0);
+  });
+});
+
+describe('earliestHistoryMonth', () => {
+  it('returns the first day of the month retentionMonths back', () => {
+    const e = earliestHistoryMonth(new Date(2026, 5, 15), 24);
+    expect(e.getFullYear()).toBe(2024);
+    expect(e.getMonth()).toBe(5); // June
+    expect(e.getDate()).toBe(1);
+  });
+
+  it('rolls the year back correctly across the boundary', () => {
+    const e = earliestHistoryMonth(new Date(2026, 1, 10), 24); // Feb 2026
+    expect(e.getFullYear()).toBe(2024);
+    expect(e.getMonth()).toBe(1); // Feb
   });
 });
 
