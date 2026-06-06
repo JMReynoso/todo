@@ -200,6 +200,62 @@ describe('isCompletedOn', () => {
   });
 });
 
+describe('isCompletedOn — late check-off of a past-due occurrence', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-06-10T12:00:00')); // "today" is the 10th
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('crosses off the assigned day when a past-due task is completed today', () => {
+    // One-off assigned for the 8th, ticked off today (the 10th): the ledger
+    // holds today, but the calendar should cross off the assigned day.
+    const t = makeTask({
+      cadence: 'once',
+      startsOn: '2026-06-08',
+      done: true,
+      completedDates: ['2026-06-10'],
+    });
+    expect(isCompletedOn(t, new Date(2026, 5, 8))).toBe(true);
+  });
+
+  it('does not cross off the assigned day while the task is still open', () => {
+    const t = makeTask({
+      cadence: 'once',
+      startsOn: '2026-06-08',
+      done: false,
+      completedDates: ['2026-06-02'], // an unrelated prior entry
+    });
+    expect(isCompletedOn(t, new Date(2026, 5, 8))).toBe(false);
+  });
+
+  it('never crosses off a future assigned day, even when done', () => {
+    // Defensive: a done task whose assigned day is in the future stays unmarked.
+    const t = makeTask({
+      cadence: 'once',
+      startsOn: '2026-06-20',
+      done: true,
+      completedDates: ['2026-06-10'],
+    });
+    expect(isCompletedOn(t, new Date(2026, 5, 20))).toBe(false);
+  });
+
+  it('leaves other occurrences of a recurring task untouched', () => {
+    // Weekly task assigned this Monday (the 8th), completed today (Wed 10th).
+    // Only this Monday crosses off — next Monday (the 15th) stays open.
+    const t = makeTask({
+      cadence: 'weekly',
+      startsOn: '2026-06-08',
+      done: true,
+      completedDates: ['2026-06-10'],
+    });
+    expect(isCompletedOn(t, new Date(2026, 5, 8))).toBe(true);
+    expect(isCompletedOn(t, new Date(2026, 5, 15))).toBe(false);
+  });
+});
+
 describe('monthProgress', () => {
   const today = new Date(2026, 5, 15); // 2026-06-15
 
