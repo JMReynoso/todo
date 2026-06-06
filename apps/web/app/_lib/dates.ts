@@ -110,8 +110,18 @@ export function nextDueOn(startsOn: string, cadence: Cadence): string {
  * that existed before the CompletedDates column was added and carry no history).
  */
 export function isCompletedOn(task: Task, date: Date): boolean {
+  const iso = isoDate(date);
   if (task.completedDates?.length) {
-    return task.completedDates.includes(isoDate(date));
+    if (task.completedDates.includes(iso)) return true;
+    // A late check-off stamps the ledger with the day it was *completed* (today),
+    // not the day the task was assigned for — so an overdue task ticked off today
+    // would otherwise never cross off its past occurrence. When the task is done,
+    // also cross off its current assigned day (`startsOn`), as long as that day is
+    // today or earlier. Future occurrences are never crossed off.
+    if (task.done && iso === task.startsOn && iso <= isoDate(new Date())) {
+      return true;
+    }
+    return false;
   }
   // Ledger is empty — fall back to the global done flag.
   return task.done;
