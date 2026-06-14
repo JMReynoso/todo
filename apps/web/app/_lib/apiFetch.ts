@@ -54,6 +54,14 @@ export async function apiFetch<T>(path: string, options?: RequestInit): Promise<
     },
   });
 
+  // A 401 means the token is missing, expired, or invalid. Tokens now carry an
+  // expiry, so this is the normal end-of-session path: drop the stored token and
+  // bounce to login instead of letting the app spin on a dead session.
+  if (res.status === 401 && typeof window !== 'undefined') {
+    localStorage.removeItem('auth_token');
+    if (window.location.pathname !== '/login') window.location.assign('/login');
+  }
+
   if (!res.ok) {
     // Surface the server's message so callers can show why a request failed
     // instead of a bare status code. Bodies come in three shapes: a plain

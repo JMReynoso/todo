@@ -37,6 +37,11 @@ services:
       ASPNETCORE_URLS: http://+:5091
       ConnectionStrings__Postgres: "Host=postgres;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}"
       ConnectionStrings__Redis: "redis:6379,password=${REDIS_PASSWORD}"
+      # JWT signing key — no default; the API refuses to boot if this is unset.
+      Jwt__Secret: ${JWT_SECRET}
+      # HTTP Basic credentials for the Swagger UI and Hangfire dashboard in prod.
+      Dashboard__Username: ${DASHBOARD_USER}
+      Dashboard__Password: ${DASHBOARD_PASSWORD}
       # Consumed only by `dotnet api.dll --seed`; ignored on normal boot.
       Seed__Admin1Name: ${SEED_ADMIN1_NAME}
       Seed__Admin1Initials: ${SEED_ADMIN1_INITIALS}
