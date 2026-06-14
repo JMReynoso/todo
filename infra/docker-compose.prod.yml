@@ -3,10 +3,13 @@ services:
     build:
       context: ../apps/web
       dockerfile: Dockerfile.prod
-      # NEXT_PUBLIC_ vars are embedded at build time. Pass the public-facing API
-      # URL here once API routes exist, e.g.:
-      # args:
-      #   NEXT_PUBLIC_API_URL: https://yourdomain.com/api
+      args:
+        # Baked into the client bundle at build time. Empty = same-origin: the
+        # browser issues relative /api and /uploads requests that the reverse
+        # proxy / Cloudflare tunnel routes to the API, so the API needs no public
+        # port of its own. Set NEXT_PUBLIC_API_URL only if the API lives on a
+        # different host.
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL-}
     ports:
       - "3100:3000"
     restart: unless-stopped
