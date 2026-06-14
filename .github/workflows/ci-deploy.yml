@@ -95,6 +95,9 @@ jobs:
           POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
           REDIS_PASSWORD: ${{ secrets.REDIS_PASSWORD }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          DASHBOARD_USER: ${{ secrets.DASHBOARD_USER }}
+          DASHBOARD_PASSWORD: ${{ secrets.DASHBOARD_PASSWORD }}
           SEED_ADMIN1_NAME: ${{ secrets.SEED_ADMIN1_NAME }}
           SEED_ADMIN1_INITIALS: ${{ secrets.SEED_ADMIN1_INITIALS }}
           SEED_ADMIN1_COLOR: ${{ secrets.SEED_ADMIN1_COLOR }}
@@ -111,6 +114,9 @@ jobs:
             echo "POSTGRES_USER=$POSTGRES_USER"
             echo "POSTGRES_PASSWORD=$POSTGRES_PASSWORD"
             echo "REDIS_PASSWORD=$REDIS_PASSWORD"
+            echo "JWT_SECRET=$JWT_SECRET"
+            echo "DASHBOARD_USER=$DASHBOARD_USER"
+            echo "DASHBOARD_PASSWORD=$DASHBOARD_PASSWORD"
             echo "SEED_ADMIN1_NAME=$SEED_ADMIN1_NAME"
             echo "SEED_ADMIN1_INITIALS=$SEED_ADMIN1_INITIALS"
             echo "SEED_ADMIN1_COLOR=$SEED_ADMIN1_COLOR"
