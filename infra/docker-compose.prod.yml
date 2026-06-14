@@ -34,7 +34,10 @@ services:
       context: ../apps/api
       dockerfile: Dockerfile.prod
     ports:
-      - "5091:5091"
+      # Bind to loopback only: the API is reachable from the host (where
+      # cloudflared runs) but not from the LAN or any public interface. The
+      # tunnel routes /api, /uploads, /swagger, /hangfire here.
+      - "127.0.0.1:5091:5091"
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_URLS: http://+:5091
