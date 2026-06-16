@@ -23,15 +23,6 @@ COPY . .
 # app/_lib/demo); unset/false produces the normal production build.
 ARG NEXT_PUBLIC_DEMO
 ENV NEXT_PUBLIC_DEMO=$NEXT_PUBLIC_DEMO
-
-# Base URL the browser uses to reach the API. Leave empty for same-origin: the
-# client then issues relative requests (/api/…, /uploads/…) that a reverse proxy
-# or Cloudflare tunnel routes to the API, so the API needs no public port of its
-# own. Set to an absolute origin (e.g. https://todo.example.com) only if the API
-# is served from a different host. Empty string is a deliberate, valid value.
-ARG NEXT_PUBLIC_API_URL=""
-ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
-
 ENV NEXT_TELEMETRY_DISABLED=1
 
 RUN pnpm build

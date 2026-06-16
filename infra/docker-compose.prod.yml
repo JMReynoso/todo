@@ -3,13 +3,10 @@ services:
     build:
       context: ../apps/web
       dockerfile: Dockerfile.prod
-      args:
-        # Baked into the client bundle at build time. Empty = same-origin: the
-        # browser issues relative /api and /uploads requests that the reverse
-        # proxy / Cloudflare tunnel routes to the API, so the API needs no public
-        # port of its own. Set NEXT_PUBLIC_API_URL only if the API lives on a
-        # different host.
-        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL-}
+      # NEXT_PUBLIC_ vars are embedded at build time. Pass the public-facing API
+      # URL here once API routes exist, e.g.:
+      # args:
+      #   NEXT_PUBLIC_API_URL: https://yourdomain.com/api
     ports:
       - "3100:3000"
     restart: unless-stopped
@@ -34,20 +31,12 @@ services:
       context: ../apps/api
       dockerfile: Dockerfile.prod
     ports:
-      # Bind to loopback only: the API is reachable from the host (where
-      # cloudflared runs) but not from the LAN or any public interface. The
-      # tunnel routes /api, /uploads, /swagger, /hangfire here.
-      - "127.0.0.1:5091:5091"
+      - "5091:5091"
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_URLS: http://+:5091
       ConnectionStrings__Postgres: "Host=postgres;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}"
       ConnectionStrings__Redis: "redis:6379,password=${REDIS_PASSWORD}"
-      # JWT signing key — no default; the API refuses to boot if this is unset.
-      Jwt__Secret: ${JWT_SECRET}
-      # HTTP Basic credentials for the Swagger UI and Hangfire dashboard in prod.
-      Dashboard__Username: ${DASHBOARD_USER}
-      Dashboard__Password: ${DASHBOARD_PASSWORD}
       # Consumed only by `dotnet api.dll --seed`; ignored on normal boot.
       Seed__Admin1Name: ${SEED_ADMIN1_NAME}
       Seed__Admin1Initials: ${SEED_ADMIN1_INITIALS}
