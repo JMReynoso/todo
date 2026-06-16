@@ -6,7 +6,9 @@ using api.Infrastructure;
 using api.Infrastructure.Persistence;
 using api.Infrastructure.Storage;
 using Hangfire;
+using Hangfire.Dashboard;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.IdentityModel.Tokens;
@@ -33,7 +35,16 @@ try
     builder.Services.AddCors(options => options.AddDefaultPolicy(policy =>
         policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod()));
 
-    var jwtSecret = builder.Configuration["Jwt:Secret"]!;
+    // The JWT signing secret must come from configuration (env var Jwt__Secret in
+    // prod). Fail fast rather than boot with a missing/weak key — a known secret
+    // lets anyone forge a token for any user. HMAC-SHA256 needs at least 256 bits.
+    var jwtSecret = builder.Configuration["Jwt:Secret"];
+    if (string.IsNullOrWhiteSpace(jwtSecret) || Encoding.UTF8.GetByteCount(jwtSecret) < 32)
+        throw new InvalidOperationException(
+            "Jwt:Secret is missing or too short. Set the JWT_SECRET environment variable " +
+            "(mapped to Jwt__Secret) to a random value of at least 32 bytes.");
+
+    builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
     builder.Services.Configure<JwtOptions>(o => o.Secret = jwtSecret);
     builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         .AddJwtBearer(options =>
@@ -44,10 +55,19 @@ try
                 IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret)),
                 ValidateIssuer = false,
                 ValidateAudience = false,
-                RequireExpirationTime = false,
-                ValidateLifetime = false,
+                // Tokens carry an expiry now — enforce it so leaked/old tokens die.
+                RequireExpirationTime = true,
+                ValidateLifetime = true,
             };
         });
+
+    // Default-deny: every endpoint requires an authenticated user unless it opts
+    // out with [AllowAnonymous] (e.g. login). This is the safety net so a
+    // controller that forgets [Authorize] isn't silently left wide open.
+    builder.Services.AddAuthorizationBuilder()
+        .SetFallbackPolicy(new AuthorizationPolicyBuilder()
+            .RequireAuthenticatedUser()
+            .Build());
 
     builder.Services.AddControllers()
         .AddJsonOptions(o =>
@@ -139,9 +159,24 @@ try
         RequestPath = "/uploads",
     });
 
+    // Swagger UI and the Hangfire dashboard expose the full API surface and
+    // background-job internals. In production they sit behind HTTP Basic auth
+    // (Dashboard:Username / Dashboard:Password). In development they stay open
+    // for local use, as before.
+    if (!app.Environment.IsDevelopment())
+        app.UseWhen(
+            ctx => ctx.Request.Path.StartsWithSegments("/swagger"),
+            branch => branch.UseMiddleware<api.DashboardBasicAuthMiddleware>());
+
     app.UseSwagger();
     app.UseSwaggerUI();
-    app.UseHangfireDashboard();
+
+    var hangfireAuth = app.Environment.IsDevelopment()
+        ? new Hangfire.Dashboard.IDashboardAuthorizationFilter[]
+            { new Hangfire.Dashboard.LocalRequestsOnlyAuthorizationFilter() }
+        : new Hangfire.Dashboard.IDashboardAuthorizationFilter[]
+            { new api.HangfireDashboardBasicAuthFilter() };
+    app.UseHangfireDashboard("/hangfire", new DashboardOptions { Authorization = hangfireAuth });
 
     var jobs = app.Services.GetRequiredService<IRecurringJobManager>();
     jobs.AddOrUpdate<TodoResetJob>(
@@ -153,7 +188,7 @@ try
         job => job.ExecuteAsync(CancellationToken.None),
         Cron.Yearly);
 
-    app.MapGet("/", () => Results.Redirect("/swagger")).ExcludeFromDescription();
+    app.MapGet("/", () => Results.Redirect("/swagger")).ExcludeFromDescription().AllowAnonymous();
 
 
     app.UseCors();
