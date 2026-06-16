@@ -4,6 +4,7 @@ using api.Domain.Entities;
 using api.Domain.Interfaces;
 using Api.UnitTests.TestSupport;
 using Microsoft.Extensions.Options;
+using System.IdentityModel.Tokens.Jwt;
 
 namespace Api.UnitTests.Services;
 
@@ -81,6 +82,43 @@ public class AuthServiceTests
             Assert.That(result.Email, Is.EqualTo("alice@test.com"));
             Assert.That(result.Token, Is.Not.Null.And.Not.Empty);
         });
+    }
+
+    [Test]
+    public async Task LoginAsync_IssuesTokenThatExpires_DefaultThirtyDays()
+    {
+        var person = PersonWithHash("alice@test.com", "secret123");
+        _persons.Setup(p => p.GetByEmailAsync("alice@test.com", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(person);
+
+        var before = DateTime.UtcNow;
+        var result = await _service.LoginAsync(new LoginRequest("alice@test.com", "secret123"));
+
+        var token = new JwtSecurityTokenHandler().ReadJwtToken(result!.Token);
+        Assert.Multiple(() =>
+        {
+            // Tokens must carry an expiry (the whole point of the change) and it
+            // must be in the future — never issued already-expired.
+            Assert.That(token.ValidTo, Is.GreaterThan(DateTime.UtcNow));
+            Assert.That(token.ValidTo, Is.EqualTo(before.AddDays(30)).Within(TimeSpan.FromMinutes(1)));
+        });
+    }
+
+    [Test]
+    public async Task LoginAsync_HonorsConfiguredExpiryDays()
+    {
+        var service = new AuthService(
+            _persons.Object,
+            Options.Create(new JwtOptions { Secret = TestSecret, ExpiryDays = 1 }));
+        var person = PersonWithHash("alice@test.com", "secret123");
+        _persons.Setup(p => p.GetByEmailAsync("alice@test.com", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(person);
+
+        var before = DateTime.UtcNow;
+        var result = await service.LoginAsync(new LoginRequest("alice@test.com", "secret123"));
+
+        var token = new JwtSecurityTokenHandler().ReadJwtToken(result!.Token);
+        Assert.That(token.ValidTo, Is.EqualTo(before.AddDays(1)).Within(TimeSpan.FromMinutes(1)));
     }
 
     [Test]
