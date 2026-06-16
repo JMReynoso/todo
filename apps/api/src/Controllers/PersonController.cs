@@ -1,13 +1,11 @@
 using api.Application.DTOs.Requests;
 using api.Application.DTOs.Responses;
 using api.Application.Persons;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace api.Controllers;
 
-[Authorize]
 [ApiController]
 [Route("api/persons")]
 public class PersonController(PersonService persons) : ControllerBase

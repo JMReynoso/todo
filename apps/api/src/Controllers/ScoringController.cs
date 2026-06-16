@@ -1,11 +1,9 @@
 using api.Application.DTOs.Responses;
 using api.Application.Scoring;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace api.Controllers;
 
-[Authorize]
 [ApiController]
 [Route("api/scoring")]
 public class ScoringController(ScoringService scoring) : ControllerBase

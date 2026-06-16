@@ -30,7 +30,6 @@ public class AuthService(IPersonRepository persons, IOptions<JwtOptions> jwtOpti
                 new Claim(ClaimTypes.Email, person.Email),
                 new Claim(ClaimTypes.Name, person.Name),
             ],
-            expires: DateTime.UtcNow.AddDays(jwtOptions.Value.ExpiryDays),
             signingCredentials: creds);
 
         return new LoginResponse(

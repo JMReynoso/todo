@@ -7,11 +7,11 @@ using System.Security.Claims;
 
 namespace api.Controllers;
 
-[Authorize]
 [ApiController]
 [Route("api/todos")]
 public class TodoController(TodoService todos) : ControllerBase
 {
+    [Authorize]
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<TodoResponse>>> GetAll(CancellationToken ct)
     {
@@ -26,6 +26,7 @@ public class TodoController(TodoService todos) : ControllerBase
         return todo is null ? NotFound() : Ok(todo);
     }
 
+    [Authorize]
     [HttpPost]
     public async Task<ActionResult<TodoResponse>> Create(CreateTodoRequest request, CancellationToken ct)
     {
